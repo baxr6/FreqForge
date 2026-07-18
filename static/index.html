@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFIx7 Leverage Scorecard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<header class="results-banner">
+  <div class="banner-top">
+    <img src="/img/banner.png" alt="NFIx7 Scorecard" class="banner-image">
+    <div class="banner-stats" id="banner-stats"></div>
+  </div>
+  <div class="badge-row" id="hero-badges"></div>
+  <div class="meta-strip">
+    <span><b>Formula:</b> <span id="formula-text">loading&hellip;</span></span>
+    <span><b>Scale:</b> fixed absolute thresholds &mdash; graded independently, not relative to other runs &middot; Generated: <b id="hero-generated" style="color:var(--text-dim)"></b></span>
+    <button class="pill-btn" style="margin-left:auto;" onclick="openSettingsModal()">&#9881; Settings</button>
+  </div>
+</header>
+
+<div class="filter-bar-wrap"><div class="filter-bar" id="filter-bar"></div></div>
+<div id="compare-toggle-wrap"></div>
+<div id="compare-section" style="display:none;"></div>
+
+<div class="add-run" id="add-run">
+  <button class="add-run-toggle" onclick="document.getElementById('add-run').classList.toggle('open')">
+    <span>+ ADD NEW RUN &mdash; paste a freqtrade console log to auto-score it</span>
+    <span class="chevron">&#9662;</span>
+  </button>
+  <div class="add-run-body">
+    <div class="field-row">
+      <div class="field" style="max-width:160px;">
+        <label>Strategy</label>
+        <input type="text" id="lev-label" placeholder="e.g. 7x">
+      </div>
+      <div class="field">
+        <label>Or load a .log file</label>
+        <input type="file" id="log-file" accept=".log,.txt">
+      </div>
+      <div class="field">
+        <label>Trades JSON (optional &mdash; for Trades tab)</label>
+        <input type="file" id="trades-file" accept=".json">
+      </div>
+    </div>
+    <label style="display:block;font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Paste console log (baseline_Nx_console.log)</label>
+    <textarea id="log-paste" placeholder="Paste the full contents of a *_console.log file here, or use the file loader above..."></textarea>
+    <div>
+      <button class="btn" onclick="parseAndReview()">Parse log</button>
+      <button class="btn secondary" onclick="clearAddRun()">Clear</button>
+    </div>
+    <div id="trades-status"></div>
+    <div id="parse-status"></div>
+    <div id="review-panel"></div>
+    <div class="storage-note">
+      Stored server-side in a real SQLite file (<code>data/leverage_runs.db</code>) &mdash; survives browser changes, accessible from any device on your network while the server's running.
+      <br>
+      <button class="btn secondary" style="margin-top:8px;" onclick="exportData()">Export backup (.json)</button>
+      <button class="btn secondary" style="margin-top:8px;" onclick="document.getElementById('import-file').click()">Import backup</button>
+      <input type="file" id="import-file" accept=".json" style="display:none;">
+    </div>
+  </div>
+</div>
+
+<div class="selector" id="selector"></div>
+
+<div class="subnav" id="subnav"></div>
+<div id="run-banner" style="padding:14px clamp(20px,5vw,64px) 0;"></div>
+<main id="main"></main>
+<div id="submain" style="padding:0 clamp(20px,5vw,64px);"></div>
+
+<div class="history">
+  <div class="history-head">
+    <h2>ALL RUNS &mdash; FULL HISTORY</h2>
+    <p>click any row to inspect above</p>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Strategy</th><th>Grade</th><th>Score</th><th>CAGR %</th><th>Sharpe</th>
+        <th>Calmar</th><th>Max DD %</th><th>Profit Factor</th><th>Liq Rate %</th><th>Worst Trade %</th><th>Final Bal.</th><th></th>
+      </tr>
+    </thead>
+    <tbody id="history-body"></tbody>
+  </table>
+</div>
+
+<div class="method" id="methodology-text">
+  <b>Methodology (v3).</b> Loading&hellip;
+</div>
+
+<script src="js/constants.js"></script>
+<script src="js/api.js"></script>
+<script src="js/config.js"></script>
+<script src="js/scoring.js"></script>
+<script src="js/hero.js"></script>
+<script src="js/filters.js"></script>
+<script src="js/parsers.js"></script>
+<script src="js/addrun.js"></script>
+<script src="js/summary.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/tabs.js"></script>
+<script src="js/compare.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

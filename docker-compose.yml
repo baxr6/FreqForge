@@ -1,0 +1,17 @@
+services:
+  nfix7-scorecard:
+    build: .
+    container_name: nfix7-scorecard
+    restart: unless-stopped
+    ports:
+      - "5055:5055"
+    volumes:
+      - "./data:/app/data"
+    environment:
+      - TZ=Australia/Brisbane
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5055/api/runs', timeout=3)"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
