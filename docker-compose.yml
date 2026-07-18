@@ -1,7 +1,7 @@
 services:
   nfix7-scorecard:
     build: .
-    container_name: nfix7-scorecard
+    container_name: freqforge
     restart: unless-stopped
     ports:
       - "5055:5055"
