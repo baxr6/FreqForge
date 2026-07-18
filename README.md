@@ -1,5 +1,34 @@
 # FreqForge
 
+
+<p align="center">
+  <img src="docs/images/banner/banner.png" width="900">
+</p>
+
+## Screenshots
+
+### Main Dashboard
+![Main Dashboard](docs/images/screenshots/main.png)
+
+### Overview
+![Overview](docs/images/screenshots/overview.png)
+
+### Strategy Comparison
+![Comparison Chart](docs/images/screenshots/comparison-chart.png)
+
+### Grind Analysis
+![Grind Analysis](docs/images/screenshots/grind-analysis.png)
+
+### Heatmap
+![Heatmap](docs/images/screenshots/heatmap.png)
+
+### Winning Trades
+![Winning Trades](docs/images/screenshots/winning-trades.png)
+
+### Configuration
+![Configuration](docs/images/screenshots/configuration.png)
+
+
 Self-hosted app for grading FreqForge backtest runs at different leverage levels. Real
 SQLite storage, served over HTTP, accessible from any device on your network while
 the server's running. Every score is computed **independently per run against fixed
@@ -7,16 +36,6 @@ thresholds** — adding, removing, or editing one run never changes another's gr
 Scoring weights and thresholds are configurable via the in-app **⚙ Settings** panel.
 
 A dashboard for analysing Freqtrade strategies, backtests, and trading performance.
-
-## Screenshots
-
-### Dashboard
-
-![Dashboard](docs/images/main.png)
-
-### Backtest Results
-
-![Backtest Results](docs/images/overview.png)
 
 ## Project structure
 
