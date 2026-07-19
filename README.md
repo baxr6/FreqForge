@@ -132,11 +132,14 @@ unzip -o backtest-result-2026-07-12_20-52-42.zip -d extracted/5x
 ### Step 4 — Strategy label auto-assigns itself, then save
 
 Leave the **Strategy** field empty and click **Parse log** — it reads the leverage
-straight from freqtrade's `"Using resolved strategy NFIx7BackTest5x"` line and the
-NFI version from a one-line logger addition (see [NFI version
-tracking](#nfi-version-tracking) below), producing something like
-`NFIx7-5x-v17.4.413` automatically. Typing anything yourself is always respected and
-never overwritten.
+straight from freqtrade's `"Using resolved strategy NFIx7BackTest5x"` line and combines
+it with today's date, producing something like `NFIx7-5x-20-07-2026` automatically.
+Typing anything yourself is always respected and never overwritten.
+
+The label only needs to be unique and easy to scan now — exchange, NFI version, and
+market type all live in their own searchable/filterable fields, so the label doesn't
+need to carry them anymore. Saving a second run at the same leverage on the same day
+won't silently overwrite the first; it gets a `-2` suffix instead.
 
 Fix anything with an amber border in the review panel, then **Save this run**.
 Repeat for each leverage level.
@@ -340,7 +343,7 @@ survives rebuilds, consistent across every device on your network.
 ## NFI version tracking
 
 The scorecard parses a `nfi_version` field from a specific log line — but freqtrade
-doesn't print this automatically. Add one small hook to your own `NFIx7BackTest.py`
+doesn't print this automatically. Add one small class to your own `NFIx7BackTest.py`
 (never touches the auto-updated `NostalgiaForInfinityX7.py`, so it survives your
 `nfi-updater` pulling new releases):
 
@@ -350,20 +353,41 @@ from NostalgiaForInfinityX7 import NostalgiaForInfinityX7
 
 logger = logging.getLogger(__name__)
 
-class NFIx7BackTestBase(NostalgiaForInfinityX7):
+class NFIx7Version(NostalgiaForInfinityX7):
     def bot_start(self, **kwargs) -> None:
         super().bot_start(**kwargs)
         logger.info(f"NFI strategy version: {self.version()}")
-
-class NFIx7BackTest3x(NFIx7BackTestBase):
-    futures_mode_leverage = 3.0
-    # ...same pattern for every leverage subclass
 ```
 
 `bot_start()` is confirmed by freqtrade's own docs to fire once during backtesting,
 right after data loads — this produces a log line like `NFI strategy version:
 v17.4.413`, which the scorecard picks up automatically and uses both for display and
 for auto-assigning Strategy labels.
+
+**This one class covers both leverage and spot runs** — it carries no leverage-specific
+settings itself, those only live in the subclasses below it:
+
+```python
+class NFIx7BackTest3x(NFIx7Version):
+    futures_mode_leverage = 3.0
+    # ...same pattern for every leverage subclass
+```
+
+For spot, skip the subclasses entirely and point `--strategy` straight at
+`NFIx7Version` — it behaves identically to running `NostalgiaForInfinityX7` directly,
+with only the version-logging hook added:
+
+```bash
+docker compose run --rm freqtrade_backtest_binance backtesting \
+  --config user_data/config_back_test.json \
+  --strategy NFIx7Version \
+  --timerange 20260201- \
+  --timeframe 5m \
+  --export trades --breakdown day \
+  --backtest-directory user_data/backtest_results/spot_test \
+  --notes baseline_spot \
+  2>&1 | tee user_data/backtest_results/spot_test/baseline_spot_console.log
+```
 
 ## Statistical significance (p-value)
 

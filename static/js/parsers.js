@@ -44,7 +44,7 @@ function parseFreqtradeLog(text){
   // capitalization isn't verified against a real log sample, so this is deliberately flexible —
   // if it doesn't match, parseTradesJSON's pair-naming fallback (BTC/USDT vs BTC/USDT:USDT)
   // usually catches it instead, and Quick Edit covers whatever's left.
-  const tradingModeMatch = text.match(new RegExp('Trading\\\\s*[Mm]ode\\\\s*'+SEP+'\\\\s*(Spot|Futures)', 'i'));
+  const tradingModeMatch = text.match(new RegExp('Trading\\s*[Mm]ode\\s*'+SEP+'\\s*(Spot|Futures)', 'i'));
   out.market_type = tradingModeMatch ? tradingModeMatch[1].toLowerCase() : null;
 
   const versionMatch = text.match(/NFI strategy version:\s*(\S+)/i);

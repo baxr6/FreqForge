@@ -55,6 +55,23 @@ document.getElementById('trades-file').addEventListener('change', (e)=>{
   reader.readAsText(file);
 });
 
+function todayDateLabel(){
+  const d = new Date();
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  return `${dd}-${mm}-${d.getFullYear()}`;
+}
+
+function uniqueAutoLabel(base){
+  // Same leverage re-run on the same day would otherwise silently collide (same primary
+  // key) and overwrite the earlier save — append -2, -3, etc. instead if the base label
+  // is already taken.
+  if(!RUNS[base]) return base;
+  let n = 2;
+  while(RUNS[`${base}-${n}`]) n++;
+  return `${base}-${n}`;
+}
+
 function parseAndReview(){
   const text = document.getElementById('log-paste').value;
   const statusEl = document.getElementById('parse-status');
@@ -78,12 +95,10 @@ function parseAndReview(){
   const labelEl = document.getElementById('lev-label');
   const isUntouched = labelEl.value.trim() === '' || /^\d+x$/i.test(labelEl.value.trim());
   if(isUntouched && parsed.detected_leverage){
-    let newLabel = `NFIx7-${parsed.detected_leverage}`;
-    if(parsed.nfi_version) newLabel += `-${parsed.nfi_version}`;
-    labelEl.value = newLabel;
-  } else if(parsed.nfi_version && /^\d+x$/i.test(labelEl.value.trim())){
+    labelEl.value = uniqueAutoLabel(`NFIx7-${parsed.detected_leverage}-${todayDateLabel()}`);
+  } else if(/^\d+x$/i.test(labelEl.value.trim())){
     // fallback: leverage was already typed/guessed from filename, build the full label around it
-    labelEl.value = `NFIx7-${labelEl.value.trim()}-${parsed.nfi_version}`;
+    labelEl.value = uniqueAutoLabel(`NFIx7-${labelEl.value.trim()}-${todayDateLabel()}`);
   }
 
   const detailSummary = `Pairs: ${pendingDetail.pairs.length} &middot; Exit reasons: ${pendingDetail.exits.length} &middot; Enter tags: ${pendingDetail.enters.length} &middot; Days: ${pendingDetail.days.length}`;
