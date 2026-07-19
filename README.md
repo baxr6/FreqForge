@@ -2,7 +2,7 @@
 
 # FreqForge
 
-Self-hosted leverage backtest scorecard for NFIx7. Real SQLite storage, served over
+Self-hosted leverage backtest analysis for your freqtrade strategy's. Real SQLite storage, served over
 HTTP, accessible from any device on your network while the server's running. Every
 score is computed **independently per run against fixed thresholds** — adding,
 removing, or editing one run never changes another's grade. Weights and thresholds
@@ -46,7 +46,7 @@ navigation, not a different runtime model.
 
 ## Run it
 
-### Option A: Docker (matches your existing NFI stack)
+### Option A: Docker (matches your existing stack)
 
 ```bash
 cd freqforge
@@ -58,13 +58,6 @@ Open `http://<your-machine-ip>:5055` from any device on your LAN.
 Data lives in `./data/leverage_runs.db` on the host (bind-mounted), so it survives
 container rebuilds/recreates same as your other services. Scoring config lives
 alongside it in `./data/scoring_config.json`.
-
-> **Upgrading from an older `nfix7-scorecard` deployment?** The Docker service name
-> changed from `nfix7-scorecard` to `freqforge` as part of this rebrand. Run
-> `docker compose down` against your **old** compose file first, then drop this
-> update into the same project folder (so your existing `./data/` carries over
-> automatically) before running `docker compose up -d --build` again — otherwise
-> you'll end up with two containers instead of one replacing the other.
 
 ### Option B: Plain Python, no Docker
 
@@ -211,7 +204,7 @@ re-parsing a log:
 - **Rename** the run (safely cascades across every detail table — pairs, exits,
   enters, days, trades all move with it)
 - **Exchange** — manual override if the parser ever misses it
-- **Grind Mode Max Slots** — manual field for tracking NFI's `grind_mode_max_slots`
+- **Grind Mode Max Slots** — manual field for tracking strategy's `grind_mode_max_slots`
   strategy-config override per run (no log source exists for this, so it's
   manual-only)
 
@@ -257,7 +250,7 @@ survives rebuilds, consistent across every device on your network.
 
 ---
 
-## NFI version tracking
+## Strategy version tracking
 
 The scorecard parses a `nfi_version` field from a specific log line — but freqtrade
 doesn't print this automatically. Add one small hook to your own `NFIx7BackTest.py`
