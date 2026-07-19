@@ -2,7 +2,7 @@
 
 # FreqForge
 
-Self-hosted leverage backtest analysis for your freqtrade strategy's. Real SQLite storage, served over
+Self-hosted leverage backtest scorecard for NFIx7. Real SQLite storage, served over
 HTTP, accessible from any device on your network while the server's running. Every
 score is computed **independently per run against fixed thresholds** — adding,
 removing, or editing one run never changes another's grade. Weights and thresholds
@@ -46,7 +46,7 @@ navigation, not a different runtime model.
 
 ## Run it
 
-### Option A: Docker (matches your existing stack)
+### Option A: Docker (matches your existing NFI stack)
 
 ```bash
 cd freqforge
@@ -58,6 +58,13 @@ Open `http://<your-machine-ip>:5055` from any device on your LAN.
 Data lives in `./data/leverage_runs.db` on the host (bind-mounted), so it survives
 container rebuilds/recreates same as your other services. Scoring config lives
 alongside it in `./data/scoring_config.json`.
+
+> **Upgrading from an older `nfix7-scorecard` deployment?** The Docker service name
+> changed from `nfix7-scorecard` to `freqforge` as part of this rebrand. Run
+> `docker compose down` against your **old** compose file first, then drop this
+> update into the same project folder (so your existing `./data/` carries over
+> automatically) before running `docker compose up -d --build` again — otherwise
+> you'll end up with two containers instead of one replacing the other.
 
 ### Option B: Plain Python, no Docker
 
@@ -152,6 +159,7 @@ Once a run is saved, click its tile to see:
 | **Winning Trades** | **Yes** | Every profitable trade, best first |
 | **Losing Trades** | **Yes** | Every losing trade, worst first |
 | **Grind Analysis** | **Yes** | Order-count/duration distributions, longest-held trades, click any trade for its full order sequence |
+| **Monte Carlo** | **Yes** | Reshuffles your actual trades 1,000 times to test whether the reported max drawdown was luck of trade ordering or genuinely representative |
 
 **\*** Heatmap, Exit Reasons, and Enter Tags work from the log alone, but freqtrade's
 own tables are pair-agnostic. **If you've also loaded trades.json**, these three tabs
@@ -176,6 +184,28 @@ ambiguity either way.
 ![Grind Analysis with order-sequence modal](docs/images/screenshots/grind-analysis.png)
 
 ---
+
+## Monte Carlo trade-reshuffling
+
+A backtest's reported max drawdown reflects one specific ordering of trades — the
+order they actually happened to occur in. This tab takes your actual trade sequence
+and randomly reshuffles it 1,000 times, recomputing max drawdown for each reshuffle.
+Total profit is identical in every simulation (same trades, same sum) — only the
+*path* changes, which reveals whether your reported drawdown was a lucky, unlucky, or
+typical ordering:
+
+- **Favorable ordering** (top ~20% of simulations) — your actual drawdown was better
+  than nearly all alternatives. Treat the reported number as optimistic; real-world
+  risk is plausibly higher than this backtest suggests.
+- **Unfavorable ordering** (bottom ~20%) — your actual drawdown was worse than nearly
+  all alternatives. The tough sequence genuinely happened, but typical risk for this
+  trade set looks better than what this one run reported.
+- **Typical ordering** (middle ~60%) — the reported drawdown is a reasonable,
+  representative estimate either way.
+
+Needs trades.json loaded (uses each trade's `profit_abs` and `open_date`). Starting
+equity for the simulation uses the run's recorded deposit, falling back to $500 if
+none is set.
 
 ## Filtering and comparing runs
 
@@ -204,7 +234,7 @@ re-parsing a log:
 - **Rename** the run (safely cascades across every detail table — pairs, exits,
   enters, days, trades all move with it)
 - **Exchange** — manual override if the parser ever misses it
-- **Grind Mode Max Slots** — manual field for tracking strategy's `grind_mode_max_slots`
+- **Grind Mode Max Slots** — manual field for tracking NFI's `grind_mode_max_slots`
   strategy-config override per run (no log source exists for this, so it's
   manual-only)
 
@@ -250,7 +280,7 @@ survives rebuilds, consistent across every device on your network.
 
 ---
 
-## Strategy version tracking
+## NFI version tracking
 
 The scorecard parses a `nfi_version` field from a specific log line — but freqtrade
 doesn't print this automatically. Add one small hook to your own `NFIx7BackTest.py`

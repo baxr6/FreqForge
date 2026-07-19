@@ -10,8 +10,9 @@ const SUBTABS = [
   {kind:'wins', label:'Winning Trades'},
   {kind:'losses', label:'Losing Trades'},
   {kind:'grind', label:'Grind Analysis'},
+  {kind:'montecarlo', label:'Monte Carlo'},
 ];
-const DETAIL_API_MAP = {charts:'days', yearly:'days', wins:'trades', losses:'trades', grind:'trades'};
+const DETAIL_API_MAP = {charts:'days', yearly:'days', wins:'trades', losses:'trades', grind:'trades', montecarlo:'trades'};
 
 function buildSubnav(lev){
   const nav = document.getElementById('subnav');
@@ -77,6 +78,7 @@ async function switchSubTab(lev, kind){
   else if(kind === 'wins') sub.innerHTML = renderTradesTable(rows.filter(r=>r.profit_pct>=0).sort((a,b)=>b.profit_pct-a.profit_pct), 'wins');
   else if(kind === 'losses') sub.innerHTML = renderTradesTable(rows.filter(r=>r.profit_pct<0).sort((a,b)=>a.profit_pct-b.profit_pct), 'losses');
   else if(kind === 'grind') sub.innerHTML = renderGrindAnalysis(rows);
+  else if(kind === 'montecarlo') sub.innerHTML = renderMonteCarlo(rows, DATA[lev]);
   else sub.innerHTML = renderGenericDetailTable(rows, kind, pairBreakdown);
 }
 
