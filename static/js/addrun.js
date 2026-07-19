@@ -3,6 +3,14 @@ let pendingDetail = null;
 let pendingTrades = null;
 let pendingPairlistCount = null;
 let pendingPairlistHash = null;
+let pendingPValue = null;
+let pendingExpectancy = null;
+let pendingExpectancyRatio = null;
+let pendingMaxConsecutiveWins = null;
+let pendingMaxConsecutiveLosses = null;
+let pendingWinnerHoldingAvg = null;
+let pendingLoserHoldingAvg = null;
+let pendingMarketTypeFromPairs = null;
 
 document.getElementById('trades-file').addEventListener('change', (e)=>{
   const file = e.target.files[0];
@@ -14,11 +22,32 @@ document.getElementById('trades-file').addEventListener('change', (e)=>{
       pendingTrades = null;
       pendingPairlistCount = null;
       pendingPairlistHash = null;
+      pendingPValue = null;
+      pendingExpectancy = null;
+      pendingExpectancyRatio = null;
+      pendingMaxConsecutiveWins = null;
+      pendingMaxConsecutiveLosses = null;
+      pendingWinnerHoldingAvg = null;
+      pendingLoserHoldingAvg = null;
+      pendingMarketTypeFromPairs = null;
       document.getElementById('trades-status').innerHTML = `<div class="parse-status warn">${result.error}</div>`;
     } else {
       pendingTrades = result.trades;
       pendingPairlistCount = result.pairlist_count;
       pendingPairlistHash = result.pairlist_hash;
+      pendingPValue = result.p_value;
+      pendingExpectancy = result.expectancy;
+      pendingExpectancyRatio = result.expectancy_ratio;
+      pendingMaxConsecutiveWins = result.max_consecutive_wins;
+      pendingMaxConsecutiveLosses = result.max_consecutive_losses;
+      pendingWinnerHoldingAvg = result.winner_holding_avg;
+      pendingLoserHoldingAvg = result.loser_holding_avg;
+      pendingMarketTypeFromPairs = result.market_type_from_pairs;
+      // if the log didn't catch it but trades.json did, backfill the review panel so it
+      // doesn't show a false "missing" flag for something that's actually already resolved
+      if(pendingReview && pendingReview.market_type == null && pendingMarketTypeFromPairs != null){
+        pendingReview.market_type = pendingMarketTypeFromPairs;
+      }
       const plNote = result.pairlist_count ? ` &middot; pairlist: ${result.pairlist_count} pairs` : '';
       document.getElementById('trades-status').innerHTML = `<div class="parse-status ok">Parsed ${result.trades.length} individual trades${plNote}.</div>`;
     }
@@ -69,7 +98,7 @@ function parseAndReview(){
     ['pf','Profit Factor'], ['sqn','SQN'], ['trades','Total Trades'], ['win_days','Win Days'],
     ['lose_days','Lose Days'], ['worst_trade','Worst Trade %'], ['liq_count','Liquidations'],
     ['sl_count','Stop-loss Exits'], ['final_bal','Final Balance'],
-    ['period_start','Period Start'], ['period_end','Period End'], ['max_trades','Max Open Trades'], ['deposit','Deposit (USDT)'], ['exchange','Exchange'], ['nfi_version','NFI Version'], ['grind_mode_max_slots','Grind Mode Max Slots (manual)']
+    ['period_start','Period Start'], ['period_end','Period End'], ['max_trades','Max Open Trades'], ['deposit','Deposit (USDT)'], ['exchange','Exchange'], ['nfi_version','NFI Version'], ['market_type','Market Type (spot/futures)'], ['grind_mode_max_slots','Grind Mode Max Slots (manual)']
   ];
 
   document.getElementById('review-panel').innerHTML = `
@@ -103,6 +132,17 @@ async function saveRun(){
   // only attach it if a trades file was actually loaded this time.
   if(pendingPairlistCount != null) run.pairlist_count = pendingPairlistCount;
   if(pendingPairlistHash != null) run.pairlist_hash = pendingPairlistHash;
+  if(pendingPValue != null) run.p_value = pendingPValue;
+  if(pendingExpectancy != null) run.expectancy = pendingExpectancy;
+  if(pendingExpectancyRatio != null) run.expectancy_ratio = pendingExpectancyRatio;
+  if(pendingMaxConsecutiveWins != null) run.max_consecutive_wins = pendingMaxConsecutiveWins;
+  if(pendingMaxConsecutiveLosses != null) run.max_consecutive_losses = pendingMaxConsecutiveLosses;
+  if(pendingWinnerHoldingAvg != null) run.winner_holding_avg = pendingWinnerHoldingAvg;
+  if(pendingLoserHoldingAvg != null) run.loser_holding_avg = pendingLoserHoldingAvg;
+  // market_type: prefer the log's "Trading Mode" line if it matched, otherwise fall back
+  // to the pair-naming convention detected from trades.json (more reliable, when available)
+  const resolvedMarketType = (pendingReview && pendingReview.market_type) || pendingMarketTypeFromPairs;
+  if(resolvedMarketType != null) run.market_type = resolvedMarketType;
 
   const ok = await apiSaveRun(lev, run);
   if(!ok) return; // don't touch UI/RUNS state further — the alert already explained why
@@ -151,6 +191,14 @@ function clearAddRun(){
   pendingTrades=null;
   pendingPairlistCount=null;
   pendingPairlistHash=null;
+  pendingPValue=null;
+  pendingExpectancy=null;
+  pendingExpectancyRatio=null;
+  pendingMaxConsecutiveWins=null;
+  pendingMaxConsecutiveLosses=null;
+  pendingWinnerHoldingAvg=null;
+  pendingLoserHoldingAvg=null;
+  pendingMarketTypeFromPairs=null;
 }
 
 document.getElementById('log-file').addEventListener('change', (e)=>{

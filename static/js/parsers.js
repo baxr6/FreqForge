@@ -40,6 +40,13 @@ function parseFreqtradeLog(text){
   const exchangeMatch = text.match(/Using exchange\s+(\w+)/i) || text.match(/Using Exchange\s+"(\w+)"/i);
   out.exchange = exchangeMatch ? exchangeMatch[1][0].toUpperCase() + exchangeMatch[1].slice(1).toLowerCase() : null;
 
+  // Market type: freqtrade's backtest summary includes a "Trading Mode" row. Exact spacing/
+  // capitalization isn't verified against a real log sample, so this is deliberately flexible —
+  // if it doesn't match, parseTradesJSON's pair-naming fallback (BTC/USDT vs BTC/USDT:USDT)
+  // usually catches it instead, and Quick Edit covers whatever's left.
+  const tradingModeMatch = text.match(new RegExp('Trading\\\\s*[Mm]ode\\\\s*'+SEP+'\\\\s*(Spot|Futures)', 'i'));
+  out.market_type = tradingModeMatch ? tradingModeMatch[1].toLowerCase() : null;
+
   const versionMatch = text.match(/NFI strategy version:\s*(\S+)/i);
   out.nfi_version = versionMatch ? versionMatch[1] : null;
 
@@ -180,6 +187,26 @@ function parseTradesJSON(raw){
     pairlist_hash = (h>>>0).toString(16);
   }
 
-  return { trades, pairlist_count, pairlist_hash };
+  // p_value: freqtrade's own one-sample t-test on mean per-trade return vs zero.
+  // "is the average profit distinguishable from noise?" — informational only, deliberately
+  // not folded into the scoring formula since freqtrade's own docs caveat it heavily
+  // (assumes independent trades, which real strategies rarely are; not proof of genuine edge).
+  const p_value = (stratData && typeof stratData.p_value === 'number') ? stratData.p_value : null;
+
+  // Market type fallback: freqtrade's own pair-naming convention differs by market —
+  // spot pairs are "BASE/QUOTE" (e.g. BTC/USDT), futures pairs are "BASE/QUOTE:SETTLE"
+  // (e.g. BTC/USDT:USDT). More reliable than the log-line parse since this format is
+  // directly confirmed, not guessed at.
+  const market_type_from_pairs = trades.length ? (trades[0].pair.includes(':') ? 'futures' : 'spot') : null;
+  const expectancy = (stratData && typeof stratData.expectancy === 'number') ? stratData.expectancy : null;
+  const expectancy_ratio = (stratData && typeof stratData.expectancy_ratio === 'number') ? stratData.expectancy_ratio : null;
+  const max_consecutive_wins = (stratData && typeof stratData.max_consecutive_wins === 'number') ? stratData.max_consecutive_wins : null;
+  const max_consecutive_losses = (stratData && typeof stratData.max_consecutive_losses === 'number') ? stratData.max_consecutive_losses : null;
+  const winner_holding_avg = (stratData && typeof stratData.winner_holding_avg === 'string') ? stratData.winner_holding_avg : null;
+  const loser_holding_avg = (stratData && typeof stratData.loser_holding_avg === 'string') ? stratData.loser_holding_avg : null;
+
+  return { trades, pairlist_count, pairlist_hash, p_value, expectancy, expectancy_ratio,
+           max_consecutive_wins, max_consecutive_losses, winner_holding_avg, loser_holding_avg,
+           market_type_from_pairs };
 }
 
