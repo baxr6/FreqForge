@@ -207,8 +207,6 @@ Needs trades.json loaded (uses each trade's `profit_abs` and `open_date`). Start
 equity for the simulation uses the run's recorded deposit, falling back to $500 if
 none is set.
 
-![Monte Carlo Shuffeling modal](docs/images/screenshots/monte-carlo.png)
-
 ## Filtering and comparing runs
 
 Once you have 4+ runs, an **Exchange / Version filter bar** appears above the run
@@ -309,6 +307,28 @@ class NFIx7BackTest3x(NFIx7BackTestBase):
 right after data loads — this produces a log line like `NFI strategy version:
 v17.4.413`, which the scorecard picks up automatically and uses both for display and
 for auto-assigning Strategy labels.
+
+## Statistical significance (p-value)
+
+Every run's Summary tab shows freqtrade's own mean-profit p-value alongside SQN (they
+share the same underlying t-statistic) — a two-sided one-sample t-test on whether the
+average per-trade return is distinguishable from zero. Below 0.05 is the conventional
+significance bar; the tool color-codes green under that threshold, amber above it.
+
+**Deliberately excluded from the scoring formula** — freqtrade's own docs caveat this
+metric heavily (assumes independent trades, which real strategies rarely are; a low
+value alone isn't proof of genuine edge). It's shown as context for your own judgment,
+not baked into an automated grade that would overstate how much confidence it earns.
+Needs trades.json loaded; shows "needs trades.json" rather than a misleading zero when
+it's not available.
+
+Same tab also surfaces **Expectancy** (average $ per trade — more intuitive than
+Profit Factor for "is this worth trading"), **longest win/loss streaks** (relevant to
+capital and drawdown-tolerance planning beyond aggregate stats), and **average
+winner vs loser holding time** (a real signal about *how* a strategy wins — cutting
+losses fast vs letting winners run, or the reverse). All pulled directly from
+freqtrade's own export, all need trades.json, all correctly distinguish a genuine
+zero from data that simply wasn't loaded.
 
 ## Pairlist fingerprint
 

@@ -29,9 +29,11 @@ FIELDS = [
     "trades", "win_days", "lose_days", "worst_trade",
     "liq_count", "sl_count", "final_bal",
     "period_start", "period_end", "max_trades", "deposit", "exchange", "nfi_version",
-    "pairlist_count", "pairlist_hash", "grind_mode_max_slots",
+    "pairlist_count", "pairlist_hash", "grind_mode_max_slots", "p_value",
+    "expectancy", "expectancy_ratio", "max_consecutive_wins", "max_consecutive_losses",
+    "winner_holding_avg", "loser_holding_avg",
 ]
-TEXT_FIELDS = {"period_start", "period_end", "exchange", "pairlist_hash", "nfi_version"}
+TEXT_FIELDS = {"period_start", "period_end", "exchange", "pairlist_hash", "nfi_version", "winner_holding_avg", "loser_holding_avg"}
 
 
 def get_db():
@@ -76,6 +78,13 @@ def init_db():
             pairlist_count REAL,
             pairlist_hash TEXT,
             grind_mode_max_slots REAL,
+            p_value REAL,
+            expectancy REAL,
+            expectancy_ratio REAL,
+            max_consecutive_wins REAL,
+            max_consecutive_losses REAL,
+            winner_holding_avg TEXT,
+            loser_holding_avg TEXT,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -217,10 +226,17 @@ def list_runs():
     return jsonify(out)
 
 
+NULLABLE_NUMERIC_FIELDS = {"p_value", "expectancy", "expectancy_ratio", "max_consecutive_wins", "max_consecutive_losses"}  # 0 is a meaningful real value for these — missing must stay NULL, not default to 0
+
+
 @app.route("/api/runs/<lev>", methods=["PUT"])
 def upsert_run(lev):
     body = request.get_json(force=True) or {}
-    values = [body.get(f, "" if f in TEXT_FIELDS else 0) for f in FIELDS]
+    def default_for(f):
+        if f in TEXT_FIELDS: return ""
+        if f in NULLABLE_NUMERIC_FIELDS: return None
+        return 0
+    values = [body.get(f, default_for(f)) for f in FIELDS]
     db = get_db()
     placeholders = ", ".join("?" for _ in FIELDS)
     col_names = ", ".join(FIELDS)

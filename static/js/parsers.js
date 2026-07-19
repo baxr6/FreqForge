@@ -180,6 +180,19 @@ function parseTradesJSON(raw){
     pairlist_hash = (h>>>0).toString(16);
   }
 
-  return { trades, pairlist_count, pairlist_hash };
+  // p_value: freqtrade's own one-sample t-test on mean per-trade return vs zero.
+  // "is the average profit distinguishable from noise?" — informational only, deliberately
+  // not folded into the scoring formula since freqtrade's own docs caveat it heavily
+  // (assumes independent trades, which real strategies rarely are; not proof of genuine edge).
+  const p_value = (stratData && typeof stratData.p_value === 'number') ? stratData.p_value : null;
+  const expectancy = (stratData && typeof stratData.expectancy === 'number') ? stratData.expectancy : null;
+  const expectancy_ratio = (stratData && typeof stratData.expectancy_ratio === 'number') ? stratData.expectancy_ratio : null;
+  const max_consecutive_wins = (stratData && typeof stratData.max_consecutive_wins === 'number') ? stratData.max_consecutive_wins : null;
+  const max_consecutive_losses = (stratData && typeof stratData.max_consecutive_losses === 'number') ? stratData.max_consecutive_losses : null;
+  const winner_holding_avg = (stratData && typeof stratData.winner_holding_avg === 'string') ? stratData.winner_holding_avg : null;
+  const loser_holding_avg = (stratData && typeof stratData.loser_holding_avg === 'string') ? stratData.loser_holding_avg : null;
+
+  return { trades, pairlist_count, pairlist_hash, p_value, expectancy, expectancy_ratio,
+           max_consecutive_wins, max_consecutive_losses, winner_holding_avg, loser_holding_avg };
 }
 

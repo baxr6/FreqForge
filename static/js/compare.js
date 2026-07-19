@@ -1,6 +1,14 @@
 const COMPARE_PALETTE = ['#8b5cf6','#3ea1ff','#3ddc84','#f0a83c','#ef5164','#e879f9','#22d3ee','#facc15','#fb923c','#a3e635'];
 let compareChartOpen = false;
 
+function inspectFromCompare(lev){
+  if(!DATA[lev]){
+    alert(`"${lev}" no longer exists (renamed or deleted since this chart was drawn) — try re-opening the comparison chart.`);
+    return;
+  }
+  selectLeverage(lev);
+}
+
 function refreshCompareUI(){
   buildCompareToggle();
   if(compareChartOpen) renderCompareChart();
@@ -85,10 +93,10 @@ async function renderCompareChart(){
   }
 
   const legendItems = paths.map(p => `
-    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;" onclick="render('${escapeAttr(p.lev)}')" title="Click to inspect ${escapeHtml(p.lev)}">
+    <div class="compare-legend-row" onclick="inspectFromCompare('${escapeAttr(p.lev)}')" title="Click to inspect ${escapeHtml(p.lev)}">
       <span style="width:12px;height:12px;border-radius:3px;background:${p.color};flex-shrink:0;"></span>
-      <span style="font-family:var(--mono);font-size:12px;color:var(--text-dim);">${escapeHtml(p.lev.toUpperCase())}</span>
-      <span style="font-family:var(--mono);font-size:11px;color:${p.finalVal>=0?'var(--green)':'var(--red)'};margin-left:auto;">${fmt(p.finalVal,1)}</span>
+      <span class="compare-legend-label">${escapeHtml(p.lev.toUpperCase())}</span>
+      <span style="font-family:var(--mono);font-size:11px;color:${p.finalVal>=0?'var(--green)':'var(--red)'};margin-left:auto;flex-shrink:0;">${fmt(p.finalVal,1)}</span>
     </div>`).join('');
 
   section.innerHTML = `

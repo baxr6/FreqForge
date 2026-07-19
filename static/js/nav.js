@@ -53,6 +53,16 @@ function render(lev){
         <div class="stat ${d.maxdd>10?'neg':d.maxdd>2?'warn':''}"><div class="k">Max Drawdown</div><div class="v">${fmt(d.maxdd,2)}%</div></div>
         <div class="stat"><div class="k">Profit Factor</div><div class="v">${fmt(d.pf,1)}</div></div>
         <div class="stat"><div class="k">SQN</div><div class="v">${fmt(d.sqn,2)}</div></div>
+        <div class="stat" title="Average $ profit expected per trade. More intuitive than Profit Factor for 'is this worth trading' — a strategy can have a great PF but tiny per-trade expectancy.">
+          <div class="k">Expectancy</div>
+          <div class="v ${d.expectancy==null ? '' : d.expectancy>=0 ? 'pos' : 'neg'}">${d.expectancy==null ? 'needs trades.json' : '$'+fmt(d.expectancy,2)}</div>
+        </div>
+        <div class="stat" title="Two-sided p-value: is the average per-trade profit distinguishable from zero, or could it be noise? Below 0.05 is the conventional significance bar. Caveat: assumes independent trades (real strategies rarely are), and a low value alone isn't proof of genuine edge.">
+          <div class="k">Mean-profit p-value</div>
+          <div class="v" style="color:${d.p_value==null ? 'var(--text-faint)' : d.p_value<0.05 ? 'var(--green)' : 'var(--amber)'};">
+            ${d.p_value==null ? 'needs trades.json' : d.p_value<0.001 ? '&lt;0.001' : fmt(d.p_value,4)}
+          </div>
+        </div>
       </div>
     </div>
 
@@ -61,6 +71,22 @@ function render(lev){
       <div class="stat-grid" style="grid-template-columns:1fr;">
         <div class="stat ${d.worst_trade < -50 ? 'neg':''}"><div class="k">Worst single trade</div><div class="v">${fmt(d.worst_trade,2)}%</div></div>
         <div class="stat ${d.lose_days>5?'neg':''}"><div class="k">Losing days / total</div><div class="v">${d.lose_days} <span style="color:var(--text-faint);font-size:13px;">of ${d.win_days+d.lose_days}</span></div></div>
+        <div class="stat" title="Longest run of consecutive winning trades, then losing trades. Relevant to capital/drawdown-tolerance planning beyond aggregate stats — two strategies with identical overall numbers can feel very different to trade if one has much longer losing streaks.">
+          <div class="k">Longest win / loss streak</div>
+          <div class="v">
+            <span class="pos">${d.max_consecutive_wins==null ? '?' : fmtInt(d.max_consecutive_wins)}</span>
+            <span style="color:var(--text-faint);"> / </span>
+            <span class="${(d.max_consecutive_losses||0)>5?'neg':''}">${d.max_consecutive_losses==null ? '?' : fmtInt(d.max_consecutive_losses)}</span>
+            ${d.max_consecutive_wins==null ? '<span style="color:var(--text-faint);font-size:12px;"> needs trades.json</span>' : ''}
+          </div>
+        </div>
+        <div class="stat" title="Average time winning trades stay open vs losing trades. A big asymmetry is a real signal about how the strategy wins — e.g. cutting losses fast while letting winners run, or the opposite.">
+          <div class="k">Avg hold: winners / losers</div>
+          <div class="v" style="font-size:15px;">
+            ${d.winner_holding_avg ? `<span class="pos">${escapeHtml(d.winner_holding_avg)}</span>` : '<span style="color:var(--text-faint);">needs trades.json</span>'}
+            ${d.winner_holding_avg && d.loser_holding_avg ? ` <span style="color:var(--text-faint);">/</span> <span class="neg">${escapeHtml(d.loser_holding_avg)}</span>` : ''}
+          </div>
+        </div>
         <div class="stat"><div class="k">Final balance (500 start)</div><div class="v" style="color:var(--green);">$${fmtInt(d.final_bal.toFixed(0))}</div></div>
       </div>
       <div class="gauge-wrap">

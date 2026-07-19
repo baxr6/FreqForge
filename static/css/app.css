@@ -72,7 +72,7 @@
     border-bottom:1px solid var(--line);
   }
   .banner-image{
-    display:block;height:auto;width:100%;max-width:50%;flex-shrink:0;
+    display:block;height:auto;width:100%;max-width:62%;flex-shrink:0;
   }
   .banner-top{
     display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap;
@@ -299,6 +299,18 @@
   }
   .trade-modal-header .close-btn:hover{color:var(--red);}
   .trade-modal-body{padding:18px 22px;overflow-y:auto;}
+
+  /* ---------- COMPARISON CHART LEGEND ---------- */
+  .compare-legend-row{
+    display:flex;align-items:center;gap:8px;padding:7px 8px;margin:0 -8px;
+    border-radius:6px;cursor:pointer;transition:background .12s var(--ease);
+    max-width:100%;
+  }
+  .compare-legend-row:hover{background:var(--panel-raised);}
+  .compare-legend-label{
+    font-family:var(--mono);font-size:12px;color:var(--text-dim);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;
+  }
 
   /* ---------- FILTER BAR (leverage/exchange/version narrowing) ---------- */
   .filter-bar-wrap{
