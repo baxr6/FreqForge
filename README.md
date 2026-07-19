@@ -207,6 +207,8 @@ Needs trades.json loaded (uses each trade's `profit_abs` and `open_date`). Start
 equity for the simulation uses the run's recorded deposit, falling back to $500 if
 none is set.
 
+![Monte Carlo Shuffeling modal](docs/images/screenshots/monte-carlo.png)
+
 ## Filtering and comparing runs
 
 Once you have 4+ runs, an **Exchange / Version filter bar** appears above the run
