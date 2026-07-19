@@ -303,22 +303,27 @@ function showTradeOrders(index){
   overlay.className = 'trade-modal-overlay';
   overlay.onclick = (e) => { if(e.target === overlay) closeTradeModal(); };
 
+  // Color by open/close semantics (ft_is_entry), not raw buy/sell direction — for a short
+  // trade the *entry* order is a "sell" and the *exit* is a "buy", so coloring by literal
+  // side alone would show every short's opening as red/negative when it's just the normal
+  // way shorts open. Blue = entry/opening action, purple = exit/closing action.
   const ordersHtml = orders.length
     ? orders.map(o => `
         <tr>
-          <td class="${o.side==='buy'?'order-row-buy':'order-row-sell'}" style="text-transform:uppercase;font-weight:600;">${o.side}</td>
+          <td class="${o.entry ? 'order-row-entry' : 'order-row-exit'}" style="text-transform:uppercase;font-weight:600;">${o.side}</td>
+          <td style="color:var(--text-faint);">${o.entry ? 'Entry' : 'Exit'}</td>
           <td>${o.tag}</td>
           <td>${o.ts ? new Date(o.ts).toISOString().replace('T',' ').slice(0,19) : '—'}</td>
           <td>${o.price ? fmt(o.price, o.price<1?5:2) : '—'}</td>
           <td>${fmt(o.amount||0, 4)}</td>
           <td>${fmt(o.cost,2)}</td>
         </tr>`).join('')
-    : '<tr><td colspan="6" class="empty-note">No order-level detail stored for this trade.</td></tr>';
+    : '<tr><td colspan="7" class="empty-note">No order-level detail stored for this trade.</td></tr>';
 
   overlay.innerHTML = `
     <div class="trade-modal">
       <div class="trade-modal-header">
-        <h3>${t.pair} &mdash; order sequence</h3>
+        <h3>${t.pair} &mdash; order sequence <span class="rb-badge" style="background:${t.is_short?'var(--red-dim)':'var(--green-dim)'};color:${t.is_short?'var(--red)':'var(--green)'};border-color:${t.is_short?'var(--red)':'var(--green)'};">${t.is_short?'SHORT':'LONG'}</span></h3>
         <button class="close-btn" onclick="closeTradeModal()">&times;</button>
       </div>
       <div class="trade-modal-body">
@@ -330,10 +335,11 @@ function showTradeOrders(index){
         </div>
         <div class="detail-table-wrap">
           <table>
-            <thead><tr><th>Side</th><th>Tag</th><th>Filled</th><th>Price</th><th>Amount</th><th>Cost</th></tr></thead>
+            <thead><tr><th>Side</th><th>Action</th><th>Tag</th><th>Filled</th><th>Price</th><th>Amount</th><th>Cost</th></tr></thead>
             <tbody>${ordersHtml}</tbody>
           </table>
         </div>
+        <div class="storage-note" style="margin-top:8px;">For short trades, the entry order is a "sell" and the exit is a "buy" — this is normal, not a warning sign. Side and Action are shown separately so it's unambiguous either way.</div>
       </div>
     </div>`;
   document.body.appendChild(overlay);

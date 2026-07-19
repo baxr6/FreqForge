@@ -1,46 +1,15 @@
-# FreqForge
+# NFIx7 Leverage Scorecard
 
-
-<p align="center">
-  <img src="docs/images/banner/banner.png" width="900">
-</p>
-
-## Screenshots
-
-### Main Dashboard
-![Main Dashboard](docs/images/screenshots/main.png)
-
-### Overview
-![Overview](docs/images/screenshots/overview.png)
-
-### Strategy Comparison
-![Comparison Chart](docs/images/screenshots/comparison-chart.png)
-
-### Grind Analysis
-![Grind Analysis](docs/images/screenshots/grind-analysis.png)
-
-### Heatmap
-![Heatmap](docs/images/screenshots/heatmap.png)
-
-### Winning Trades
-![Winning Trades](docs/images/screenshots/winning-trades.png)
-
-### Configuration
-![Configuration](docs/images/screenshots/configuration.png)
-
-
-Self-hosted app for grading FreqForge backtest runs at different leverage levels. Real
+Self-hosted app for grading NFIx7 backtest runs at different leverage levels. Real
 SQLite storage, served over HTTP, accessible from any device on your network while
 the server's running. Every score is computed **independently per run against fixed
 thresholds** — adding, removing, or editing one run never changes another's grade.
 Scoring weights and thresholds are configurable via the in-app **⚙ Settings** panel.
 
-A dashboard for analysing Freqtrade strategies, backtests, and trading performance.
-
 ## Project structure
 
 ```
-FreqForge/
+nfix7-scorecard/
 ├── app.py                    Flask backend, SQLite storage, scoring config API
 ├── static/
 │   ├── index.html            HTML skeleton only — no embedded CSS/JS
@@ -75,7 +44,7 @@ runtime model.
 ### Option A: Docker (matches your existing NFI stack)
 
 ```bash
-cd FreqForge
+cd nfix7-scorecard
 docker compose up -d --build
 ```
 
@@ -87,7 +56,7 @@ container rebuilds/recreates same as your other services.
 ### Option B: Plain Python, no Docker
 
 ```bash
-cd FreqForge
+cd nfix7-scorecard
 pip install -r requirements.txt
 python app.py
 ```

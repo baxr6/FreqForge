@@ -42,23 +42,19 @@ function parseAndReview(){
     .map(([k])=>k);
   pendingReview = parsed;
 
-  // Fully auto-assign the label from the log's own content — leverage from the resolved
-  // strategy class name, version from the "NFI strategy version" line — whenever the label
-  // field is empty or still just the untouched filename-based guess. Never overwrites
-  // something the user actually typed themselves.
+  // Fully auto-assign the label from the log's own content — strategy name (fixed, this
+  // tool is NFIx7-only), leverage from the resolved strategy class name, full version from
+  // the "NFI strategy version" line — whenever the label field is empty or still just the
+  // untouched filename-based leverage guess. Never overwrites something the user typed.
   const labelEl = document.getElementById('lev-label');
   const isUntouched = labelEl.value.trim() === '' || /^\d+x$/i.test(labelEl.value.trim());
   if(isUntouched && parsed.detected_leverage){
-    let newLabel = parsed.detected_leverage;
-    if(parsed.nfi_version){
-      const versionMatch = parsed.nfi_version.match(/(\d+)$/);
-      if(versionMatch) newLabel += `-${versionMatch[1]}`;
-    }
+    let newLabel = `NFIx7-${parsed.detected_leverage}`;
+    if(parsed.nfi_version) newLabel += `-${parsed.nfi_version}`;
     labelEl.value = newLabel;
   } else if(parsed.nfi_version && /^\d+x$/i.test(labelEl.value.trim())){
-    // fallback: leverage was already typed/guessed from filename, just append the version
-    const versionMatch = parsed.nfi_version.match(/(\d+)$/);
-    if(versionMatch) labelEl.value = `${labelEl.value.trim()}-${versionMatch[1]}`;
+    // fallback: leverage was already typed/guessed from filename, build the full label around it
+    labelEl.value = `NFIx7-${labelEl.value.trim()}-${parsed.nfi_version}`;
   }
 
   const detailSummary = `Pairs: ${pendingDetail.pairs.length} &middot; Exit reasons: ${pendingDetail.exits.length} &middot; Enter tags: ${pendingDetail.enters.length} &middot; Days: ${pendingDetail.days.length}`;

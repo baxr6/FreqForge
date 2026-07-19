@@ -342,8 +342,8 @@
   .pill-btn:hover{background:rgba(62,161,255,0.18);}
   .trade-modal-meta{display:flex;gap:20px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;color:var(--text-dim);margin-bottom:16px;padding-bottom:14px;border-bottom:1px dashed var(--line);}
   .trade-modal-meta b{color:var(--text);}
-  .order-row-buy{color:var(--green);}
-  .order-row-sell{color:var(--red);}
+  .order-row-entry{color:var(--brand-b);}
+  .order-row-exit{color:var(--brand-a);}
 
   /* ---------- RUN BANNER (compact per-window metadata strip, reference-style) ---------- */
   .run-banner{

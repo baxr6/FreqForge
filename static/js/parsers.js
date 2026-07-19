@@ -155,8 +155,10 @@ function parseTradesJSON(raw){
     enter_tag: (t.enter_tag ?? '').trim(),
     duration_min: t.trade_duration ?? 0,
     order_count: Array.isArray(t.orders) ? t.orders.length : 0,
+    is_short: !!t.is_short,
     orders_json: Array.isArray(t.orders) ? JSON.stringify(t.orders.map(o => ({
       side: o.ft_order_side ?? '',
+      entry: !!o.ft_is_entry,
       tag: (o.ft_order_tag ?? '').trim(),
       cost: o.cost ?? 0,
       price: o.safe_price ?? 0,

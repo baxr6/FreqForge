@@ -36,8 +36,15 @@ function scoreWorstTrade(worstPct){
   return clamp(100 + worstPct); // worstPct is negative, e.g. -6.37 -> 93.63, -100.4 -> 0
 }
 
+function extractLeverageForSort(label){
+  // Leverage no longer has to be at the start of the label (e.g. "NFIx7-3x-v17.4.413"),
+  // so pull the first N-followed-by-x pattern out instead of assuming a leading number.
+  const m = label.match(/(\d+(?:\.\d+)?)x/i);
+  return m ? parseFloat(m[1]) : parseFloat(label); // fall back to old behavior for odd labels
+}
+
 function recompute(){
-  ORDER = Object.keys(RUNS).sort((a,b)=> parseFloat(a) - parseFloat(b));
+  ORDER = Object.keys(RUNS).sort((a,b)=> extractLeverageForSort(a) - extractLeverageForSort(b));
   if(ORDER.length===0){ DATA={}; return; }
 
   const W = SCORING_CONFIG.weights;

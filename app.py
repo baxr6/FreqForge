@@ -118,6 +118,9 @@ def init_db():
     if "orders_json" not in trades_cols:
         conn.execute("ALTER TABLE trades ADD COLUMN orders_json TEXT")
         print("[migration] added missing column 'orders_json' to trades table")
+    if "is_short" not in trades_cols:
+        conn.execute("ALTER TABLE trades ADD COLUMN is_short REAL")
+        print("[migration] added missing column 'is_short' to trades table")
     conn.commit()
     conn.close()
 
