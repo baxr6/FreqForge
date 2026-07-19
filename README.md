@@ -202,6 +202,8 @@ Total profit is identical in every simulation (same trades, same sum) — only t
 *path* changes, which reveals whether your reported drawdown was a lucky, unlucky, or
 typical ordering:
 
+![Monte Carlo trade-reshuffling](docs/images/screenshots/monte-carlo.png)
+
 - **Favorable ordering** (top ~20% of simulations) — your actual drawdown was better
   than nearly all alternatives. Treat the reported number as optimistic; real-world
   risk is plausibly higher than this backtest suggests.
