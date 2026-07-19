@@ -1,5 +1,5 @@
 """
-NFIx7 Leverage Scorecard — backend
+FreqForge — backend
 Small Flask app backed by a real SQLite file. Serves the dashboard (static/index.html)
 and a JSON API the frontend talks to for storing/reading backtest runs.
 

@@ -271,14 +271,23 @@ function renderGrindAnalysis(trades){
     </div>
 
     <div class="detail-table-wrap">
-      <div class="panel-label" style="margin:0 0 8px;">Longest-Held Trades (top 15) &mdash; long duration + high order count + low profit is the "stuck position" pattern. Click a row to see its actual buy/sell sequence.</div>
+      <div class="panel-label" style="margin:0 0 8px;">Longest-Held Trades (top 15). <span style="color:var(--brand-b);">FORCE-EXITED?</span> = backtest window ended before this position resolved naturally — outcome is genuinely unknown, not a performance signal. <span style="color:var(--amber);">LOW YIELD?</span> = resolved on its own via a real exit signal, but took a long time and many orders for little return. Click a row to see its actual buy/sell sequence.</div>
       <table>
         <thead><tr><th>Pair</th><th>Duration</th><th>Orders</th><th>Profit %</th><th>Enter Tag</th><th>Exit Reason</th></tr></thead>
         <tbody>
           ${longest.map((t,i)=>{
-            const stuck = t.duration_min > 43200 && t.order_count > 5 && Math.abs(t.profit_pct) < 5;
-            return `<tr ${stuck ? 'style="background:rgba(240,168,60,0.08);cursor:pointer;"' : 'style="cursor:pointer;"'} onclick="showTradeOrders(${i})">
-              <td class="lv-cell">${t.pair}${stuck ? ' <span class="rb-badge" style="font-size:9px;padding:1px 6px;">STUCK?</span>' : ''}</td>
+            const isForceExited = (t.exit_reason||'').includes('force_exit');
+            const isLowYield = !isForceExited && t.duration_min > 43200 && t.order_count > 5 && Math.abs(t.profit_pct) < 5;
+            const rowStyle = isForceExited ? 'background:rgba(62,161,255,0.08);cursor:pointer;'
+                            : isLowYield ? 'background:rgba(240,168,60,0.08);cursor:pointer;'
+                            : 'cursor:pointer;';
+            const badge = isForceExited
+              ? ' <span class="rb-badge" style="font-size:9px;padding:1px 6px;background:rgba(62,161,255,0.15);color:var(--brand-b);border-color:var(--brand-b);">FORCE-EXITED?</span>'
+              : isLowYield
+              ? ' <span class="rb-badge" style="font-size:9px;padding:1px 6px;">LOW YIELD?</span>'
+              : '';
+            return `<tr style="${rowStyle}" onclick="showTradeOrders(${i})">
+              <td class="lv-cell">${t.pair}${badge}</td>
               <td>${formatDuration(t.duration_min||0)}</td>
               <td>${t.order_count||0}</td>
               <td class="${t.profit_pct>=0?'pos':'neg'}">${fmt(t.profit_pct,2)}</td>
