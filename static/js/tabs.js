@@ -73,12 +73,12 @@ async function switchSubTab(lev, kind){
   }
 
   if(kind === 'days') sub.innerHTML = renderHeatmap(rows, pairBreakdown);
-  else if(kind === 'charts') sub.innerHTML = renderEquityCurve(rows);
+  else if(kind === 'charts') sub.innerHTML = renderEquityCurve(rows, DATA[lev]);
   else if(kind === 'yearly') sub.innerHTML = renderYearly(rows);
   else if(kind === 'wins') sub.innerHTML = renderTradesTable(rows.filter(r=>r.profit_pct>=0).sort((a,b)=>b.profit_pct-a.profit_pct), 'wins');
   else if(kind === 'losses') sub.innerHTML = renderTradesTable(rows.filter(r=>r.profit_pct<0).sort((a,b)=>a.profit_pct-b.profit_pct), 'losses');
   else if(kind === 'grind') sub.innerHTML = renderGrindAnalysis(rows);
-  else if(kind === 'montecarlo') sub.innerHTML = renderMonteCarlo(rows, DATA[lev]);
+  else if(kind === 'montecarlo') sub.innerHTML = renderMonteCarlo(rows, DATA[lev]) + renderInOutSample(rows, DATA[lev]);
   else sub.innerHTML = renderGenericDetailTable(rows, kind, pairBreakdown);
 }
 
@@ -393,7 +393,38 @@ function parseDDMMYYYY(s){
   return new Date(y, m-1, d);
 }
 
-function renderEquityCurve(dayRows){
+function computeKRatio(equitySeries){
+  // Linear regression on log(equity) vs day index; K-Ratio = slope / standard error of
+  // slope. Measures whether growth is a smooth, statistically confident trend or a noisy
+  // path that happens to end up somewhere — same total return can score very differently.
+  const n = equitySeries.length;
+  if(n < 5) return null; // too few points for a meaningful regression
+  const xs = equitySeries.map((_, i) => i);
+  const ys = equitySeries.map(e => Math.log(Math.max(e, 0.01)));
+  const xMean = xs.reduce((a,b)=>a+b,0) / n;
+  const yMean = ys.reduce((a,b)=>a+b,0) / n;
+  let sumXY = 0, sumXX = 0;
+  for(let i=0;i<n;i++){ sumXY += (xs[i]-xMean)*(ys[i]-yMean); sumXX += (xs[i]-xMean)**2; }
+  const slope = sumXY / sumXX;
+  const intercept = yMean - slope*xMean;
+  let sumResidSq = 0;
+  for(let i=0;i<n;i++){ const p = intercept + slope*xs[i]; sumResidSq += (ys[i]-p)**2; }
+  const residualVariance = sumResidSq / (n - 2);
+  const stdErrSlope = Math.sqrt(residualVariance / sumXX);
+  if(!(stdErrSlope > 0) || !isFinite(stdErrSlope)) return null;
+  const k = slope / stdErrSlope;
+  return isFinite(k) ? k : null;
+}
+
+function kRatioVerdict(k){
+  if(k == null) return {label:'Not enough data', color:'var(--text-faint)'};
+  if(k < 0) return {label:'Not distinguishable from noise', color:'var(--red)'};
+  if(k < 5) return {label:'Weak — trend present but noisy', color:'var(--amber)'};
+  if(k < 20) return {label:'Good — clear consistent trend', color:'var(--green)'};
+  return {label:'Excellent — steady, low-noise growth', color:'var(--green)'};
+}
+
+function renderEquityCurve(dayRows, runMeta){
   const sorted = [...dayRows].sort((a,b)=> parseDDMMYYYY(a.day) - parseDDMMYYYY(b.day));
   let cum = 0;
   const points = sorted.map(r=>{ cum += r.tot_profit_usdt; return {date:r.day, cum}; });
@@ -415,6 +446,11 @@ function renderEquityCurve(dayRows){
   const stepEvery = Math.max(1, Math.floor(points.length/6));
   const xLabels = points.map((p,i)=> (i%stepEvery===0 || i===points.length-1) ? `<text x="${xFor(i)}" y="${H-14}" fill="var(--text-faint)" font-size="10" font-family="var(--mono)" text-anchor="middle">${p.date.slice(0,5)}</text>` : '').join('');
 
+  const startingEquity = (runMeta && runMeta.deposit) ? runMeta.deposit : 500;
+  const equitySeries = points.map(p => startingEquity + p.cum);
+  const kRatio = computeKRatio(equitySeries);
+  const verdict = kRatioVerdict(kRatio);
+
   return `
     <div class="panel">
       <div class="panel-label">Cumulative Equity Curve (${points.length} trading days)</div>
@@ -429,6 +465,19 @@ function renderEquityCurve(dayRows){
         <div class="stat"><div class="k">Final cumulative</div><div class="v" style="color:${finalCum>=0?'var(--green)':'var(--red)'}">${fmt(finalCum,2)}</div></div>
         <div class="stat"><div class="k">Peak</div><div class="v">${fmt(maxY,2)}</div></div>
         <div class="stat"><div class="k">Trough</div><div class="v" style="color:${minY<0?'var(--red)':'inherit'}">${fmt(minY,2)}</div></div>
+      </div>
+      <div style="margin-top:18px;padding:14px 16px;border-radius:8px;background:var(--panel-raised);border:1px solid var(--line);">
+        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">
+          <span class="panel-label" style="margin:0;">K-Ratio</span>
+          <span style="font-family:var(--mono);font-size:22px;font-weight:600;color:${verdict.color};">${kRatio==null ? '—' : fmt(kRatio,2)}</span>
+          <span style="font-family:var(--mono);font-size:12px;color:${verdict.color};">${verdict.label}</span>
+        </div>
+        <div class="storage-note" style="margin-top:8px;">
+          Measures whether this curve's growth is a smooth, statistically consistent trend or a noisy path that
+          happens to end up somewhere — two runs with identical final profit can have very different K-Ratios.
+          Linear regression on log(equity) vs. day; slope &divide; standard error of the slope. Needs at least 5
+          days of data.
+        </div>
       </div>
     </div>`;
 }
@@ -467,10 +516,10 @@ function renderYearly(dayRows){
     <div class="empty-note" style="margin-top:8px;">Only spans the years your backtest data actually covers &mdash; a partial year is still a real partial year, not a full 12-month sample.</div>`;
 }
 
-function row(label, weight, score, color){
+function row(label, weight, score, color, subtitle=''){
   return `
     <div class="score-row">
-      <div class="label">${label}<div class="weight">wt ${weight}</div></div>
+      <div class="label">${label}<div class="weight">wt ${weight}</div>${subtitle ? `<div class="weight" style="color:var(--text-faint);">${subtitle}</div>` : ''}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${score}%;background:${color}"></div></div>
       <div class="val">${score.toFixed(0)}</div>
     </div>`;

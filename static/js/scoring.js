@@ -43,26 +43,59 @@ function extractLeverageForSort(label){
   return m ? parseFloat(m[1]) : parseFloat(label); // fall back to old behavior for odd labels
 }
 
+function getEffectiveWeights(marketType){
+  const W = SCORING_CONFIG.weights;
+  if(marketType !== 'spot') return W;
+  // Spot trading structurally can't be liquidated — scoring it on liquidation-safety
+  // would penalize/reward a risk that can't actually occur. Redistribute that weight
+  // proportionally across the other 5 categories instead of just dropping it silently.
+  const liqWeight = W.liq;
+  const others = ['cagr','sortino','dd','pf','worst'];
+  const othersTotal = others.reduce((sum,k)=>sum+W[k], 0) || 1;
+  const redistributed = {...W, liq: 0};
+  others.forEach(k => { redistributed[k] = W[k] + (W[k]/othersTotal)*liqWeight; });
+  return redistributed;
+}
+
+function getLeverageMultiplier(lev, marketType){
+  // Spot is never leveraged, by definition — always 1x regardless of what's in the label.
+  if(marketType === 'spot') return 1;
+  const parsed = extractLeverageForSort(lev);
+  // Safe fallback: if a futures label doesn't parse to a real positive number, don't
+  // de-lever at all (multiplier 1) rather than risk dividing by zero/NaN and corrupting
+  // the score based on a label we couldn't confidently read.
+  return (parsed && parsed > 0 && !isNaN(parsed)) ? parsed : 1;
+}
+
 function recompute(){
   ORDER = Object.keys(RUNS).sort((a,b)=> extractLeverageForSort(a) - extractLeverageForSort(b));
   if(ORDER.length===0){ DATA={}; return; }
 
-  const W = SCORING_CONFIG.weights;
-
   DATA = {};
   ORDER.forEach(k=>{
     const r = RUNS[k];
+    const W = getEffectiveWeights(r.market_type);
     const liq_rate = r.trades>0 ? (r.liq_count+r.sl_count)/r.trades*100 : 0;
+    // De-lever CAGR before scoring — a 5x run's 4000% raw return isn't 20x "better" than
+    // a spot run's 200%, it's amplified by the same 5x that also amplifies its risk. This
+    // is the standard practice for comparing differently-leveraged strategies fairly:
+    // divide the leveraged return by its own leverage to get an unlevered-equivalent
+    // figure, then score everyone on that same basis. Approximate, not exact (volatility
+    // drag means realized leveraged CAGR usually undershoots a clean N× multiple), but it
+    // removes the dominant distortion rather than ignoring it.
+    const leverageMultiplier = getLeverageMultiplier(k, r.market_type);
+    const delevered_cagr = r.cagr / leverageMultiplier;
     const s = {
-      cagr: scoreCagr(r.cagr),
+      cagr: scoreCagr(delevered_cagr),
       sortino: scoreSortino(r.sortino),
       dd: scoreDrawdown(r.maxdd),
-      liq: scoreLiquidation(liq_rate),
+      liq: r.market_type === 'spot' ? null : scoreLiquidation(liq_rate),
       pf: scorePF(r.pf, r.sortino),
       worst: scoreWorstTrade(r.worst_trade)
     };
-    const total = (s.cagr*W.cagr + s.sortino*W.sortino + s.dd*W.dd + s.liq*W.liq + s.pf*W.pf + s.worst*W.worst)/100;
-    DATA[k] = {...r, liq_rate, s, total, grade: letterGrade(total)};
+    const liqContribution = s.liq == null ? 0 : s.liq*W.liq;
+    const total = (s.cagr*W.cagr + s.sortino*W.sortino + s.dd*W.dd + liqContribution + s.pf*W.pf + s.worst*W.worst)/100;
+    DATA[k] = {...r, liq_rate, s, total, grade: letterGrade(total), effectiveWeights: W, leverageMultiplier, delevered_cagr};
   });
 }
 

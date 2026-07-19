@@ -18,6 +18,82 @@ function fisherYatesShuffle(arr){
   return a;
 }
 
+function computeSplitStats(trades, startingEquity){
+  const wins = trades.filter(t => t.profit_abs > 0);
+  const losses = trades.filter(t => t.profit_abs <= 0);
+  const grossWin = wins.reduce((s,t)=>s+t.profit_abs, 0);
+  const grossLoss = Math.abs(losses.reduce((s,t)=>s+t.profit_abs, 0));
+  const totalProfit = trades.reduce((s,t)=>s+t.profit_abs, 0);
+  return {
+    count: trades.length,
+    totalProfit,
+    totalProfitPct: startingEquity ? (totalProfit/startingEquity)*100 : 0,
+    winRate: trades.length ? (wins.length/trades.length)*100 : 0,
+    profitFactor: grossLoss > 0 ? grossWin/grossLoss : (grossWin > 0 ? Infinity : 0),
+    maxDD: maxDrawdownPctFromSequence(trades.map(t=>t.profit_abs), startingEquity)
+  };
+}
+
+function renderInOutSample(trades, runMeta){
+  if(!trades || trades.length < 10){
+    return '<div class="empty-note">Need at least 10 trades with trades.json loaded for a meaningful in-sample/out-of-sample split.</div>';
+  }
+  const sorted = [...trades].sort((a,b) => new Date(a.open_date) - new Date(b.open_date));
+  const splitIdx = Math.floor(sorted.length * 0.8);
+  const inSample = sorted.slice(0, splitIdx);
+  const outSample = sorted.slice(splitIdx);
+  if(outSample.length < 3){
+    return '<div class="empty-note">Not enough trades in the final 20% for a meaningful out-of-sample comparison.</div>';
+  }
+
+  const startingEquity = (runMeta && runMeta.deposit) ? runMeta.deposit : 500;
+  const inStats = computeSplitStats(inSample, startingEquity);
+  const midEquity = startingEquity + inStats.totalProfit;
+  const outStats = computeSplitStats(outSample, midEquity);
+
+  const pfDegraded = isFinite(inStats.profitFactor) && isFinite(outStats.profitFactor) && outStats.profitFactor < inStats.profitFactor * 0.6;
+  const wentNegative = outStats.totalProfit < 0 && inStats.totalProfit > 0;
+  const verdict = wentNegative
+    ? {label: 'PERFORMANCE DID NOT HOLD UP', color: 'var(--red)', note: 'The strategy was profitable on the first 80% of this period but lost money on the most recent 20%. Worth investigating whether this reflects genuine strategy decay, a market regime shift, or overfitting to the earlier period.'}
+    : pfDegraded
+    ? {label: 'MEANINGFUL DEGRADATION', color: 'var(--amber)', note: 'Profit factor dropped substantially in the most recent 20% of trades compared to the earlier period. Still profitable, but performance is trending weaker, not stronger.'}
+    : {label: 'PERFORMANCE HELD UP', color: 'var(--green)', note: 'The most recent 20% of trades performed comparably to (or better than) the earlier 80%. No sign of the strategy degrading toward the end of this backtest window.'};
+
+  const statRow = (label, inVal, outVal) => `
+    <div class="score-row">
+      <div class="label">${label}</div>
+      <div class="val" style="flex:1;text-align:right;">${inVal}</div>
+      <div class="val" style="flex:1;text-align:right;">${outVal}</div>
+    </div>`;
+
+  return `
+    <div class="panel">
+      <div class="panel-label">In-Sample vs Out-of-Sample</div>
+      <div class="storage-note" style="margin:6px 0 16px;">
+        Splits your trades chronologically &mdash; first 80% ("in-sample") vs the most recent 20%
+        ("out-of-sample") &mdash; and compares performance across the split. A strategy that looks
+        great overall but only because of strong early performance, with the tail end
+        quietly losing money, is a common way backtests overstate what to expect going forward.
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:0;font-family:var(--mono);font-size:11px;color:var(--text-faint);margin-bottom:4px;">
+        <div style="flex:1;"></div>
+        <div style="flex:1;text-align:right;">IN-SAMPLE (first 80%)</div>
+        <div style="flex:1;text-align:right;">OUT-OF-SAMPLE (last 20%)</div>
+      </div>
+      <div class="score-rows">
+        ${statRow('Trades', inStats.count, outStats.count)}
+        ${statRow('Total profit', fmt(inStats.totalProfit,2)+' ('+fmt(inStats.totalProfitPct,1)+'%)', fmt(outStats.totalProfit,2)+' ('+fmt(outStats.totalProfitPct,1)+'%)')}
+        ${statRow('Win rate', fmt(inStats.winRate,1)+'%', fmt(outStats.winRate,1)+'%')}
+        ${statRow('Profit factor', isFinite(inStats.profitFactor)?fmt(inStats.profitFactor,2):'&infin;', isFinite(outStats.profitFactor)?fmt(outStats.profitFactor,2):'&infin;')}
+        ${statRow('Max drawdown', fmt(inStats.maxDD,2)+'%', fmt(outStats.maxDD,2)+'%')}
+      </div>
+      <div style="padding:12px 16px;border-radius:8px;background:var(--panel-raised);border:1px solid ${verdict.color};margin-top:16px;">
+        <b style="color:${verdict.color};">${verdict.label}</b>
+        <div style="font-size:12.5px;color:var(--text-dim);margin-top:6px;">${verdict.note}</div>
+      </div>
+    </div>`;
+}
+
 function renderMonteCarlo(trades, runMeta){
   if(!trades || trades.length < 5){
     return '<div class="empty-note">Need at least 5 trades with trades.json loaded to run a meaningful simulation.</div>';

@@ -36,14 +36,17 @@ function render(lev){
     </div>
 
     <div class="panel">
-      <div class="panel-label">Score Breakdown &mdash; ${escapeHtml(lev.toUpperCase())}</div>
+      <div class="panel-label">Score Breakdown &mdash; ${escapeHtml(lev.toUpperCase())}${d.market_type === 'spot' ? ' <span class="rb-badge" style="background:var(--brand-b-dim,rgba(62,161,255,.12));color:var(--brand-b);border-color:var(--brand-b);">SPOT</span>' : ''}</div>
       <div class="score-rows">
-        ${row("Profitability (CAGR)", "15%", d.s.cagr, "var(--green)")}
-        ${row("Sortino Ratio", "25%", d.s.sortino, "var(--green)")}
-        ${row("Drawdown control", "25%", d.s.dd, "var(--green)")}
-        ${row("Liquidation safety", "15%", d.s.liq, d.s.liq < 50 ? "var(--red)" : "var(--green)")}
-        ${row("Profit Factor", "10%", d.s.pf, d.s.pf < 50 ? "var(--amber)" : "var(--green)")}
-        ${row("Worst-trade severity", "10%", d.s.worst, d.s.worst < 50 ? "var(--red)" : "var(--green)")}
+        ${row("Profitability (CAGR)", fmt(d.effectiveWeights.cagr,0)+"%", d.s.cagr, "var(--green)",
+          d.leverageMultiplier > 1 ? `${fmt(d.cagr,0)}% raw &divide; ${d.leverageMultiplier}x leverage = ${fmt(d.delevered_cagr,0)}% de-levered` : '')}
+        ${row("Sortino Ratio", fmt(d.effectiveWeights.sortino,0)+"%", d.s.sortino, "var(--green)")}
+        ${row("Drawdown control", fmt(d.effectiveWeights.dd,0)+"%", d.s.dd, "var(--green)")}
+        ${d.s.liq == null
+          ? `<div class="score-row"><span class="label">Liquidation safety</span><span class="weight">N/A &mdash; spot</span><span class="val" style="color:var(--text-faint);">Not applicable, can't be liquidated without leverage</span></div>`
+          : row("Liquidation safety", fmt(d.effectiveWeights.liq,0)+"%", d.s.liq, d.s.liq < 50 ? "var(--red)" : "var(--green)")}
+        ${row("Profit Factor", fmt(d.effectiveWeights.pf,0)+"%", d.s.pf, d.s.pf < 50 ? "var(--amber)" : "var(--green)")}
+        ${row("Worst-trade severity", fmt(d.effectiveWeights.worst,0)+"%", d.s.worst, d.s.worst < 50 ? "var(--red)" : "var(--green)")}
       </div>
       <div class="stat-grid" style="margin-top:26px;">
         <div class="stat"><div class="k">Total / Cagr</div><div class="v">${fmt(d.cagr,1)}%</div></div>
@@ -90,13 +93,20 @@ function render(lev){
         <div class="stat"><div class="k">Final balance (500 start)</div><div class="v" style="color:var(--green);">$${fmtInt(d.final_bal.toFixed(0))}</div></div>
       </div>
       <div class="gauge-wrap">
-        <div class="panel-label" style="margin-bottom:10px;">Forced-liquidation rate</div>
-        <div class="gauge-track">
-          <div class="gauge-needle" style="left:${Math.min(100, d.liq_rate/15*100)}%;"></div>
-        </div>
-        <div class="gauge-labels"><span>0%</span><span>SAFE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DANGER</span><span>15%</span></div>
-        <div style="margin-top:12px;font-family:var(--mono);font-size:22px;font-weight:600;color:${d.liq_rate>10?'var(--red)':d.liq_rate>2?'var(--amber)':'var(--green)'}">${fmt(d.liq_rate,2)}%</div>
-        <div style="font-size:11.5px;color:var(--text-faint);margin-top:2px;">of ${d.trades} total trades</div>
+        ${d.market_type === 'spot' ? `
+          <div class="panel-label" style="margin-bottom:10px;">Forced-liquidation rate</div>
+          <div style="padding:20px 0;text-align:center;color:var(--text-faint);font-family:var(--mono);font-size:13px;">
+            Not applicable &mdash; spot trading has no leverage, so liquidation is structurally impossible.
+          </div>
+        ` : `
+          <div class="panel-label" style="margin-bottom:10px;">Forced-liquidation rate</div>
+          <div class="gauge-track">
+            <div class="gauge-needle" style="left:${Math.min(100, d.liq_rate/15*100)}%;"></div>
+          </div>
+          <div class="gauge-labels"><span>0%</span><span>SAFE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DANGER</span><span>15%</span></div>
+          <div style="margin-top:12px;font-family:var(--mono);font-size:22px;font-weight:600;color:${d.liq_rate>10?'var(--red)':d.liq_rate>2?'var(--amber)':'var(--green)'}">${fmt(d.liq_rate,2)}%</div>
+          <div style="font-size:11.5px;color:var(--text-faint);margin-top:2px;">of ${d.trades} total trades</div>
+        `}
       </div>
     </div>
   `;

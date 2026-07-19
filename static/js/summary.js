@@ -41,7 +41,7 @@ function renderRunBanner(lev){
         ${d.max_trades ? ` &middot; Max Trades: <b>${d.max_trades}</b>` : ''}
         ${d.pairlist_count ? ` &middot; Pairlist: <b>${d.pairlist_count} pairs</b>` : ''}
         ${d.grind_mode_max_slots ? ` &middot; Grind Slots: <b>${d.grind_mode_max_slots}</b>` : ''}
-        <span class="rb-badge">FUTURES</span>
+        <span class="rb-badge" style="${d.market_type==='spot' ? 'background:rgba(62,161,255,.12);color:var(--brand-b);border-color:var(--brand-b);' : ''}">${d.market_type === 'spot' ? 'SPOT' : d.market_type === 'futures' ? 'FUTURES' : 'MARKET: UNKNOWN'}</span>
         ${pairlistWarning}
         <button class="del-btn" style="margin-left:8px;color:var(--brand-b);" onclick="toggleQuickEdit('${escapeAttr(lev)}')" title="Rename or set exchange manually">&#9998; edit</button>
       </div>
@@ -69,6 +69,14 @@ function toggleQuickEdit(lev){
           <input type="text" id="qe-exchange" value="${d.exchange || ''}" placeholder="e.g. Binance, Bybit, Bitget">
         </div>
         <div class="field">
+          <label>Market Type</label>
+          <select id="qe-markettype">
+            <option value="" ${!d.market_type?'selected':''}>Unknown</option>
+            <option value="futures" ${d.market_type==='futures'?'selected':''}>Futures</option>
+            <option value="spot" ${d.market_type==='spot'?'selected':''}>Spot</option>
+          </select>
+        </div>
+        <div class="field">
           <label>Grind Mode Max Slots</label>
           <input type="text" id="qe-grindslots" value="${d.grind_mode_max_slots || ''}" placeholder="e.g. 1 (NFI default)">
         </div>
@@ -82,6 +90,7 @@ function toggleQuickEdit(lev){
 async function saveQuickEdit(lev){
   const newLev = document.getElementById('qe-newlev').value.trim();
   const exchange = document.getElementById('qe-exchange').value.trim();
+  const marketType = document.getElementById('qe-markettype').value;
   const grindSlotsRaw = document.getElementById('qe-grindslots').value.trim();
   const grindSlots = grindSlotsRaw === '' ? null : parseFloat(grindSlotsRaw);
   const statusEl = document.getElementById('qe-status');
@@ -91,6 +100,7 @@ async function saveQuickEdit(lev){
   try{
     const patchBody = {};
     if(exchange !== (DATA[lev].exchange || '')) patchBody.exchange = exchange;
+    if(marketType !== (DATA[lev].market_type || '')) patchBody.market_type = marketType;
     if(grindSlots !== null && !isNaN(grindSlots) && grindSlots !== DATA[lev].grind_mode_max_slots) patchBody.grind_mode_max_slots = grindSlots;
     if(Object.keys(patchBody).length){
       const res = await fetch(`${API}/${encodeURIComponent(lev)}`, {
@@ -120,6 +130,16 @@ async function saveQuickEdit(lev){
 }
 
 function autoCaption(lev, d){
+  if(d.market_type === 'spot'){
+    // Spot can't be liquidated — d.liq_rate here is purely stop-loss exits, so the
+    // caption describes that specifically rather than reusing liquidation/leverage
+    // language that would be actively false for a market with no leverage at all.
+    if(d.liq_rate===0) return "No stop-loss exits observed in this run.";
+    if(d.liq_rate < 1) return "Stop-loss exits are rare but non-zero &mdash; worth a closer look at the worst trade.";
+    if(d.liq_rate < 5) return "Stop-loss exits are appearing at a measurable rate.";
+    if(d.liq_rate < 10) return "A meaningful share of trades are ending in stop-loss exits, not clean take-profits.";
+    return "Stop-loss exits are the dominant outcome at this rate &mdash; worth reviewing exit logic.";
+  }
   if(d.liq_rate===0) return "No liquidations or forced stoplosses observed in this run.";
   if(d.liq_rate < 1) return "Liquidation risk is minimal but non-zero &mdash; worth a closer look at the worst trade.";
   if(d.liq_rate < 5) return "Liquidations are appearing at a measurable rate. Risk is rising faster than raw profit alone would suggest.";

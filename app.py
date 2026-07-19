@@ -31,9 +31,9 @@ FIELDS = [
     "period_start", "period_end", "max_trades", "deposit", "exchange", "nfi_version",
     "pairlist_count", "pairlist_hash", "grind_mode_max_slots", "p_value",
     "expectancy", "expectancy_ratio", "max_consecutive_wins", "max_consecutive_losses",
-    "winner_holding_avg", "loser_holding_avg",
+    "winner_holding_avg", "loser_holding_avg", "market_type",
 ]
-TEXT_FIELDS = {"period_start", "period_end", "exchange", "pairlist_hash", "nfi_version", "winner_holding_avg", "loser_holding_avg"}
+TEXT_FIELDS = {"period_start", "period_end", "exchange", "pairlist_hash", "nfi_version", "winner_holding_avg", "loser_holding_avg", "market_type"}
 
 
 def get_db():
@@ -85,6 +85,7 @@ def init_db():
             max_consecutive_losses REAL,
             winner_holding_avg TEXT,
             loser_holding_avg TEXT,
+            market_type TEXT,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)

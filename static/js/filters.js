@@ -1,5 +1,7 @@
 let activeExchangeFilter = 'all';
 let activeVersionFilter = 'all';
+let activeMarketTypeFilter = 'all';
+let searchQuery = '';
 
 function extractVersion(label){
   const m = label.match(/v?\d+\.\d+\.\d+/i);
@@ -18,6 +20,8 @@ function passesFilters(lev){
   const d = DATA[lev];
   if(activeExchangeFilter !== 'all' && (d.exchange || 'Unknown') !== activeExchangeFilter) return false;
   if(activeVersionFilter !== 'all' && (getVersionForFiltering(lev) || 'Unversioned') !== activeVersionFilter) return false;
+  if(activeMarketTypeFilter !== 'all' && (d.market_type || 'Unknown') !== activeMarketTypeFilter) return false;
+  if(searchQuery && !lev.toLowerCase().includes(searchQuery.toLowerCase())) return false;
   return true;
 }
 
@@ -29,12 +33,23 @@ function buildFilterBar(){
 
   const exchanges = [...new Set(ORDER.map(k => DATA[k].exchange || 'Unknown'))].sort();
   const versions = [...new Set(ORDER.map(k => getVersionForFiltering(k) || 'Unversioned'))].sort();
+  const marketTypes = [...new Set(ORDER.map(k => DATA[k].market_type || 'Unknown'))].sort();
 
   const visibleCount = ORDER.filter(passesFilters).length;
-  const showClear = activeExchangeFilter !== 'all' || activeVersionFilter !== 'all';
+  const showClear = activeExchangeFilter !== 'all' || activeVersionFilter !== 'all' || activeMarketTypeFilter !== 'all' || searchQuery !== '';
 
   bar.innerHTML = `
-    <span class="filter-icon">&#9881;</span>
+    <span class="filter-icon">&#128269;</span>
+    <input type="text" id="filter-search" class="filter-search-input" placeholder="Search runs..." value="${escapeHtml(searchQuery)}">
+    <div class="divider"></div>
+    <div class="filter-group">
+      <label>Market</label>
+      <select id="filter-market">
+        <option value="all">All (${marketTypes.length})</option>
+        ${marketTypes.map(m => `<option value="${m}" ${activeMarketTypeFilter===m?'selected':''}>${m[0].toUpperCase()+m.slice(1)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="divider"></div>
     <div class="filter-group">
       <label>Exchange</label>
       <select id="filter-exchange">
@@ -53,6 +68,16 @@ function buildFilterBar(){
     ${showClear ? `<button class="pill-btn" onclick="clearFilters()">&times; clear filters</button>` : ''}
     <span class="filter-count">${visibleCount} of ${ORDER.length} runs</span>
   `;
+  document.getElementById('filter-search').addEventListener('input', e=>{
+    searchQuery = e.target.value;
+    buildSelector(); refreshCompareUI();
+    // don't rebuild the whole filter bar on every keystroke — it would steal focus from the input
+    document.querySelector('.filter-count').textContent = `${ORDER.filter(passesFilters).length} of ${ORDER.length} runs`;
+  });
+  document.getElementById('filter-market').addEventListener('change', e=>{
+    activeMarketTypeFilter = e.target.value;
+    buildFilterBar(); buildSelector(); refreshCompareUI();
+  });
   document.getElementById('filter-exchange').addEventListener('change', e=>{
     activeExchangeFilter = e.target.value;
     buildFilterBar(); buildSelector(); refreshCompareUI();
@@ -66,6 +91,8 @@ function buildFilterBar(){
 function clearFilters(){
   activeExchangeFilter = 'all';
   activeVersionFilter = 'all';
+  activeMarketTypeFilter = 'all';
+  searchQuery = '';
   buildFilterBar(); buildSelector(); refreshCompareUI();
 }
 

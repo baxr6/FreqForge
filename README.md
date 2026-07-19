@@ -185,6 +185,14 @@ ambiguity either way.
 
 ---
 
+## K-Ratio
+
+Shown at the bottom of the Equity Curve tab. Measures whether a run's growth is a
+smooth, statistically consistent trend or a noisy path that happens to end up
+somewhere — two runs with identical final profit can score very differently here.
+Computed via linear regression on log(equity) vs. day index; K-Ratio = slope ÷
+standard error of the slope. Needs at least 5 days of Heatmap data loaded.
+
 ## Monte Carlo trade-reshuffling
 
 A backtest's reported max drawdown reflects one specific ordering of trades — the
@@ -206,6 +214,53 @@ typical ordering:
 Needs trades.json loaded (uses each trade's `profit_abs` and `open_date`). Starting
 equity for the simulation uses the run's recorded deposit, falling back to $500 if
 none is set.
+
+**CAGR is de-levered before scoring** — a 5x run's raw CAGR is divided by 5 before it
+hits the scoring curve, so leverage-amplified returns aren't compared directly against
+spot or lower-leverage runs on an unfair basis. This is the standard practice for
+comparing differently-leveraged strategies (divide the leveraged return by its own
+leverage to get an unlevered-equivalent figure), not something invented for this tool.
+It's an approximation, not an exact conversion — volatility drag means realized
+leveraged returns usually undershoot a clean N&times; multiple in practice — but it
+removes the dominant distortion. The Score Breakdown panel shows the actual math for
+any run where it applies (`4,015% raw ÷ 5x leverage = 803% de-levered`); spot runs are
+always 1x and show no adjustment.
+
+## Spot and futures support
+
+Runs can be either market type — detected automatically from the log's Trading Mode
+line where present, falling back to freqtrade's own pair-naming convention
+(`BTC/USDT` = spot, `BTC/USDT:USDT` = futures) when it isn't, with a manual
+Spot/Futures override always available via Quick Edit.
+
+**Spot runs skip the Liquidation-safety scoring category entirely** — spot trading
+has no leverage, so liquidation is structurally impossible, not just unlikely. That
+category's weight redistributes proportionally across the other five rather than
+scoring a risk that can't occur. The Score Breakdown panel shows the real
+per-run weights this produces, and the Risk Instrument panel shows a plain
+"not applicable" note instead of a misleading 0% gauge.
+
+Badges reflect this too — the header shows "MIXED MARKETS" if you're tracking both,
+and the "N LIQUIDATION-FREE" count only credits futures runs, since surviving zero
+liquidation risk isn't a meaningful achievement for a run that was never exposed to it.
+
+## Searching and filtering
+
+Once you have 4+ runs, a search box appears above the run tiles — type any part of a
+label to instantly narrow the list, useful once you're tracking enough
+version/exchange/max-trades combinations that scrolling through tabs stops working.
+Combines with the Market/Exchange/Version dropdown filters, which all narrow the same
+visible set together.
+
+## In-sample vs out-of-sample
+
+Also in the Monte Carlo tab, below the reshuffling analysis. Splits your trades
+chronologically — first 80% vs the most recent 20% — and compares total profit, win
+rate, profit factor, and max drawdown across the split. Catches the common way
+backtests overstate what to expect going forward: a strategy that looks great overall
+only because of strong early performance, with the tail end quietly losing money.
+Needs at least 10 trades with trades.json loaded, and at least 3 trades in the final
+20% to produce a meaningful comparison.
 
 ## Filtering and comparing runs
 
