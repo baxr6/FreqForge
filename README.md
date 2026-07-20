@@ -2,7 +2,7 @@
 
 # FreqForge by Deano
 
-Self-hosted leverage backtest scorecard for NFIx7. Real SQLite storage, served over
+Self-hosted leverage backtest analytics for freqtrade strategy's (Tested on NostalgiaForInfinityx7). Real SQLite storage, served over
 HTTP, accessible from any device on your network while the server's running. Every
 score is computed **independently per run against fixed thresholds** — adding,
 removing, or editing one run never changes another's grade. Weights and thresholds
