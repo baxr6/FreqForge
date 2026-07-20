@@ -60,10 +60,10 @@ function renderInOutSample(trades, runMeta){
     : {label: 'PERFORMANCE HELD UP', color: 'var(--green)', note: 'The most recent 20% of trades performed comparably to (or better than) the earlier 80%. No sign of the strategy degrading toward the end of this backtest window.'};
 
   const statRow = (label, inVal, outVal) => `
-    <div class="score-row">
+    <div class="compare-stat-row">
       <div class="label">${label}</div>
-      <div class="val" style="flex:1;text-align:right;">${inVal}</div>
-      <div class="val" style="flex:1;text-align:right;">${outVal}</div>
+      <div class="val">${inVal}</div>
+      <div class="val">${outVal}</div>
     </div>`;
 
   return `
@@ -75,12 +75,12 @@ function renderInOutSample(trades, runMeta){
         great overall but only because of strong early performance, with the tail end
         quietly losing money, is a common way backtests overstate what to expect going forward.
       </div>
-      <div style="display:flex;justify-content:flex-end;gap:0;font-family:var(--mono);font-size:11px;color:var(--text-faint);margin-bottom:4px;">
-        <div style="flex:1;"></div>
-        <div style="flex:1;text-align:right;">IN-SAMPLE (first 80%)</div>
-        <div style="flex:1;text-align:right;">OUT-OF-SAMPLE (last 20%)</div>
+      <div style="display:grid;grid-template-columns:140px 1fr 1fr;gap:16px;font-family:var(--mono);font-size:11px;color:var(--text-faint);margin-bottom:2px;">
+        <div></div>
+        <div style="text-align:right;">IN-SAMPLE (first 80%)</div>
+        <div style="text-align:right;">OUT-OF-SAMPLE (last 20%)</div>
       </div>
-      <div class="score-rows">
+      <div>
         ${statRow('Trades', inStats.count, outStats.count)}
         ${statRow('Total profit', fmt(inStats.totalProfit,2)+' ('+fmt(inStats.totalProfitPct,1)+'%)', fmt(outStats.totalProfit,2)+' ('+fmt(outStats.totalProfitPct,1)+'%)')}
         ${statRow('Win rate', fmt(inStats.winRate,1)+'%', fmt(outStats.winRate,1)+'%')}
@@ -121,7 +121,9 @@ function renderMonteCarlo(trades, runMeta){
   const p50 = simulatedDDs[Math.floor(N*0.50)];
   const p95 = simulatedDDs[Math.floor(N*0.95)];
 
-  const verdict = percentile >= 80
+  const verdict = actualDD <= 3
+    ? {label: 'DRAWDOWN NEGLIGIBLE', color: 'var(--green)', note: 'Max drawdown is low enough in absolute terms that ordering luck barely matters here — even a worse-than-typical reshuffle wouldn\'t represent meaningful risk. Percentile ranking isn\'t very informative this close to zero.'}
+    : percentile >= 80
     ? {label: 'FAVORABLE ORDERING', color: 'var(--amber)', note: 'Your actual drawdown was better than nearly all random orderings of these same trades — the sequence you happened to get was unusually kind. Treat the reported max drawdown as an optimistic case: a different (equally likely) ordering could plausibly show notably worse risk than this backtest suggests.'}
     : percentile <= 20
     ? {label: 'UNFAVORABLE ORDERING', color: 'var(--brand-b)', note: 'Your actual drawdown was worse than nearly all random orderings of these same trades — this backtest happened to hit a genuinely tough sequence. Typical risk for this trade set (across how these trades could have landed) looks better than what this one run reported, though the tough sequence did really happen.'}

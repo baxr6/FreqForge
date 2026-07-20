@@ -26,6 +26,7 @@
 <div class="filter-bar-wrap"><div class="filter-bar" id="filter-bar"></div></div>
 <div id="compare-toggle-wrap"></div>
 <div id="compare-section" style="display:none;"></div>
+<div id="progress-section" style="display:none;"></div>
 
 <div class="add-run" id="add-run">
   <button class="add-run-toggle" onclick="document.getElementById('add-run').classList.toggle('open')">
@@ -66,6 +67,24 @@
   </div>
 </div>
 
+<div class="add-run" id="bulk-import">
+  <button class="add-run-toggle" onclick="document.getElementById('bulk-import').classList.toggle('open')">
+    <span>+ BULK IMPORT &mdash; drop a whole folder of logs + trades.json files at once</span>
+    <span class="chevron">&#9662;</span>
+  </button>
+  <div class="add-run-body">
+    <div id="bulk-drop-zone" class="bulk-drop-zone">
+      <div>Drag and drop a folder or multiple files here (console logs + trades.json, mixed together — order doesn't matter)</div>
+      <div style="margin-top:8px;">
+        <button class="btn secondary" onclick="document.getElementById('bulk-file-input').click()">Or browse for files</button>
+        <input type="file" id="bulk-file-input" multiple accept=".log,.txt,.json" style="display:none;">
+      </div>
+    </div>
+    <div id="bulk-status"></div>
+    <div id="bulk-review-panel"></div>
+  </div>
+</div>
+
 <div class="selector" id="selector"></div>
 
 <div class="subnav" id="subnav"></div>
@@ -101,6 +120,7 @@
 <script src="js/filters.js"></script>
 <script src="js/parsers.js"></script>
 <script src="js/addrun.js"></script>
+<script src="js/bulkimport.js"></script>
 <script src="js/summary.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/nav.js"></script>

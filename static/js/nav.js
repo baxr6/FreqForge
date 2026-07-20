@@ -10,11 +10,87 @@ function selectLeverage(lev){
   }
 }
 
+let robustnessCache = {};
+
+async function checkRobustnessQuick(lev){
+  if(robustnessCache[lev] !== undefined) return robustnessCache[lev]; // already computed this session
+
+  try{
+    const res = await fetch(`${API}/${encodeURIComponent(lev)}/detail/trades`);
+    if(!res.ok){ robustnessCache[lev] = null; return null; }
+    const trades = await res.json();
+    if(!trades || trades.length < 10){ robustnessCache[lev] = null; return null; }
+
+    const runMeta = DATA[lev];
+    const startingEquity = (runMeta && runMeta.deposit) ? runMeta.deposit : 500;
+    const sorted = [...trades].sort((a,b) => new Date(a.open_date) - new Date(b.open_date));
+    const profitSeq = sorted.map(t => t.profit_abs || 0);
+    const actualDD = maxDrawdownPctFromSequence(profitSeq, startingEquity);
+
+    // Reduced simulation count (300 vs the Monte Carlo tab's 1000) — this is a fast
+    // background check for "does this deserve a warning badge", not a precise
+    // percentile display. The full tab still runs its own 1000-simulation pass.
+    const N = 300;
+    const simulatedDDs = [];
+    for(let i=0;i<N;i++) simulatedDDs.push(maxDrawdownPctFromSequence(fisherYatesShuffle(profitSeq), startingEquity));
+    const worseThanActual = simulatedDDs.filter(dd => dd > actualDD).length;
+    const percentile = (worseThanActual / N) * 100;
+    // Percentile alone isn't enough — with low-variance trade data, simulations can tie
+    // with the actual result, making "worse than 0%" true by definition even though a
+    // near-zero drawdown is objectively fine. Only flag if the drawdown is also
+    // meaningfully large in absolute terms, not just poorly ranked against ties.
+    const mcConcerning = percentile <= 20 && actualDD > 3;
+
+    let ioConcerning = false;
+    if(trades.length >= 10){
+      const splitIdx = Math.floor(sorted.length * 0.8);
+      const inSample = sorted.slice(0, splitIdx);
+      const outSample = sorted.slice(splitIdx);
+      if(outSample.length >= 3){
+        const inProfit = inSample.reduce((s,t)=>s+(t.profit_abs||0),0);
+        const outProfit = outSample.reduce((s,t)=>s+(t.profit_abs||0),0);
+        ioConcerning = outProfit < 0 && inProfit > 0;
+      }
+    }
+
+    const result = (mcConcerning || ioConcerning)
+      ? { concerning: true, mcConcerning, ioConcerning }
+      : { concerning: false };
+    robustnessCache[lev] = result;
+    return result;
+  }catch(e){
+    robustnessCache[lev] = null;
+    return null;
+  }
+}
+
+function triggerRobustnessCheck(lev){
+  checkRobustnessQuick(lev).then(result => {
+    // Guard against a stale async result landing after the user already navigated
+    // to a different run — only apply the badge if we're still looking at this one.
+    if(currentLev !== lev || !result || !result.concerning) return;
+    const banner = document.querySelector('.run-banner');
+    if(!banner || banner.querySelector('.robustness-warn-badge')) return; // already shown or banner gone
+    const reasons = [];
+    if(result.mcConcerning) reasons.push('drawdown may be luck of trade ordering');
+    if(result.ioConcerning) reasons.push('performance did not hold up out-of-sample');
+    const badge = document.createElement('span');
+    badge.className = 'rb-badge robustness-warn-badge';
+    badge.style.cssText = 'background:rgba(240,168,60,0.12);color:var(--amber);border-color:var(--amber);cursor:pointer;';
+    badge.title = `Click to open Monte Carlo tab — ${reasons.join('; ')}`;
+    badge.innerHTML = '&#9888; ROBUSTNESS CHECK';
+    badge.onclick = () => switchSubTab(lev, 'montecarlo');
+    const editBtn = banner.querySelector('.del-btn');
+    if(editBtn) editBtn.insertAdjacentElement('beforebegin', badge);
+  });
+}
+
 function render(lev){
   currentLev = lev;
   currentSubTab = 'summary';
   buildSubnav(lev);
   renderRunBanner(lev);
+  triggerRobustnessCheck(lev);
   const d = DATA[lev];
   document.querySelectorAll('.lev-tab').forEach(b=> b.classList.toggle('active', b.dataset.lev===lev));
   document.querySelectorAll('#history-body tr').forEach(r=> r.classList.toggle('row-active', r.dataset.lev===lev));

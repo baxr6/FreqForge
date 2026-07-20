@@ -28,6 +28,7 @@ freqforge/
 │       ├── filters.js        Exchange/Version filter bar
 │       ├── parsers.js        Console-log and trades.json parsers
 │       ├── addrun.js         "+ Add New Run" panel, auto-assigned Strategy labels
+│       ├── bulkimport.js     "+ Bulk Import" — multi-file drop, log/trades pairing
 │       ├── summary.js        Run banner, grade dial, Quick Edit (rename/exchange/grind slots)
 │       ├── settings.js       ⚙ Settings modal for scoring weights/thresholds
 │       ├── nav.js            Run selection, subtab-preserving navigation
@@ -40,6 +41,8 @@ freqforge/
 │   └── backtest-runner-service.yml.example
 │                              Reference only — goes in your freqtrade project's
 │                              compose file, NOT FreqForge's (see file header)
+├── test/
+│   └── parser-tests.js        Regression tests for the log/trades parser
 ├── requirements.txt
 ├── Dockerfile
 └── docker-compose.yml
@@ -166,8 +169,7 @@ Once a run is saved, click its tile to see:
 | **Yearly** | No | Daily data aggregated by calendar year |
 | **Exit Reasons** | No\* | Exit-reason breakdown (from `EXIT REASON STATS`) |
 | **Enter Tags** | No\* | Entry-tag breakdown (from `ENTER TAG STATS`) |
-| **Winning Trades** | **Yes** | Every profitable trade, best first |
-| **Losing Trades** | **Yes** | Every losing trade, worst first |
+| **Trades** | **Yes** | Every trade, with an All/Wins/Losses toggle — filters instantly, no re-fetch |
 | **Grind Analysis** | **Yes** | Order-count/duration distributions, longest-held trades, click any trade for its full order sequence |
 | **Monte Carlo** | **Yes** | Reshuffles your actual trades 1,000 times to test whether the reported max drawdown was luck of trade ordering or genuinely representative |
 
@@ -273,6 +275,47 @@ backtests overstate what to expect going forward: a strategy that looks great ov
 only because of strong early performance, with the tail end quietly losing money.
 Needs at least 10 trades with trades.json loaded, and at least 3 trades in the final
 20% to produce a meaningful comparison.
+
+## Bulk import
+
+**+ BULK IMPORT** (below "+ ADD NEW RUN") accepts many files at once — drag a whole
+`backtest_results` folder onto it, or multi-select files via the browser. Console logs
+and trades.json files can be mixed together in any order; each log gets automatically
+paired with its closest-timestamp trades.json (matched within a 60-minute window).
+Timestamp comes from the log's own first line against the timestamp freqtrade bakes
+into its trades.json filename (`backtest-result-YYYY-MM-DD_HH-MM-SS.json`) — and if
+you've renamed a trades.json to something else (so there's no timestamp to read from
+the filename), it falls back to the file's own last-modified time instead of failing
+to pair at all. Unmatched trades.json files are reported and ignored rather than
+silently guessed at.
+
+Review each detected run in a compact table before saving — editable label, CAGR
+preview, pairing status, and an include/exclude checkbox per row — then save
+everything in one batch. Falls back gracefully: a log with no matching trades.json
+still saves fine, just without the trades-dependent tabs (same as adding it manually
+without a trades.json).
+
+## Progress over time
+
+Alongside the Comparison Chart toggle, a second button — **📈 Show Progress Over
+Time** — plots score-over-time per leverage level, using the date parsed from each
+run's auto-assigned label. Answers a different question than the Comparison Chart:
+not "how do these specific runs compare" but "is my 3x score actually trending up
+release over release, or has it plateaued." Needs at least 2 dated runs at the same
+leverage to plot a trend line; older manually-named labels without a date are skipped
+since there's nothing to place them on a timeline.
+
+## Robustness warning badge
+
+Monte Carlo and in-sample/out-of-sample results used to be invisible unless you
+specifically opened that tab — a run could show a great grade on Summary while its
+Monte Carlo tab quietly said its drawdown was luck of trade ordering, and you'd never
+know unless you happened to check. Now, a **⚠ ROBUSTNESS CHECK** badge appears
+automatically in the run banner when either check comes back concerning, computed in
+the background without blocking the page. Click it to jump straight to the Monte Carlo
+tab for the full detail. Runs without trades.json loaded, or without enough trades for
+a meaningful check, show no badge either way — silence means "nothing flagged," not
+"nothing to flag."
 
 ## Filtering and comparing runs
 
@@ -428,6 +471,20 @@ wrong pairlist file) automatically instead of requiring manual JSON diffing to s
 Only works for runs with trades.json loaded.
 
 ---
+
+## Testing the parser
+
+`test/parser-tests.js` runs the actual `parseFreqtradeLog` function (not a copy — the
+real source file) against real and realistic log fixtures, checking every regex
+extracts what it should. Exists because of two real bugs this project shipped, both
+the same shape: a regex that compiled fine and looked correct on read-through, but had
+extra escaping that silently made it never match anything. `node --check` doesn't
+catch this — it's valid JavaScript, just wrong. Run it after touching anything in
+`parsers.js`:
+
+```bash
+node test/parser-tests.js
+```
 
 ## Backup
 

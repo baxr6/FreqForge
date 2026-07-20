@@ -7,12 +7,11 @@ const SUBTABS = [
   {kind:'yearly', label:'Yearly'},
   {kind:'exits', label:'Exit Reasons'},
   {kind:'enters', label:'Enter Tags'},
-  {kind:'wins', label:'Winning Trades'},
-  {kind:'losses', label:'Losing Trades'},
+  {kind:'trades', label:'Trades'},
   {kind:'grind', label:'Grind Analysis'},
   {kind:'montecarlo', label:'Monte Carlo'},
 ];
-const DETAIL_API_MAP = {charts:'days', yearly:'days', wins:'trades', losses:'trades', grind:'trades', montecarlo:'trades'};
+const DETAIL_API_MAP = {charts:'days', yearly:'days', trades:'trades', grind:'trades', montecarlo:'trades'};
 
 function buildSubnav(lev){
   const nav = document.getElementById('subnav');
@@ -75,8 +74,7 @@ async function switchSubTab(lev, kind){
   if(kind === 'days') sub.innerHTML = renderHeatmap(rows, pairBreakdown);
   else if(kind === 'charts') sub.innerHTML = renderEquityCurve(rows, DATA[lev]);
   else if(kind === 'yearly') sub.innerHTML = renderYearly(rows);
-  else if(kind === 'wins') sub.innerHTML = renderTradesTable(rows.filter(r=>r.profit_pct>=0).sort((a,b)=>b.profit_pct-a.profit_pct), 'wins');
-  else if(kind === 'losses') sub.innerHTML = renderTradesTable(rows.filter(r=>r.profit_pct<0).sort((a,b)=>a.profit_pct-b.profit_pct), 'losses');
+  else if(kind === 'trades') sub.innerHTML = renderTradesTable(rows, 'all');
   else if(kind === 'grind') sub.innerHTML = renderGrindAnalysis(rows);
   else if(kind === 'montecarlo') sub.innerHTML = renderMonteCarlo(rows, DATA[lev]) + renderInOutSample(rows, DATA[lev]);
   else sub.innerHTML = renderGenericDetailTable(rows, kind, pairBreakdown);
@@ -365,26 +363,53 @@ function closeTradeModal(){
   document.removeEventListener('keydown', closeTradeModalOnEsc);
 }
 
-function renderTradesTable(rows, kind){
-  const label = kind==='wins' ? `${rows.length} winning trades` : kind==='losses' ? `${rows.length} losing trades` : `${rows.length} trades`;
+let allTradesCache = [];
+let tradesFilterMode = 'all';
+
+function renderTradesTable(rows, initialMode){
+  allTradesCache = rows;
+  tradesFilterMode = initialMode || 'all';
+  return renderTradesTableBody();
+}
+
+function setTradesFilter(mode){
+  tradesFilterMode = mode;
+  document.getElementById('trades-table-container').outerHTML = renderTradesTableBody();
+}
+
+function renderTradesTableBody(){
+  const wins = allTradesCache.filter(r => r.profit_pct >= 0).sort((a,b)=>b.profit_pct-a.profit_pct);
+  const losses = allTradesCache.filter(r => r.profit_pct < 0).sort((a,b)=>a.profit_pct-b.profit_pct);
+  const filtered = tradesFilterMode === 'wins' ? wins : tradesFilterMode === 'losses' ? losses : allTradesCache;
+
+  const toggleBtn = (mode, label, count) => `
+    <button class="pill-btn" style="${tradesFilterMode===mode ? 'background:rgba(62,161,255,0.22);' : ''}" onclick="setTradesFilter('${mode}')">${label} (${count})</button>`;
+
   return `
-    <div class="panel-label" style="margin:0 0 8px;">${label}</div>
-    <div class="detail-table-wrap">
-      <table>
-        <thead><tr><th>Pair</th><th>Enter Tag</th><th>Exit Reason</th><th>Profit %</th><th>Profit Abs</th><th>Open</th><th>Close</th></tr></thead>
-        <tbody>
-          ${rows.map(r=>`
-            <tr>
-              <td class="lv-cell">${r.pair}</td>
-              <td>${r.enter_tag}</td>
-              <td>${r.exit_reason}</td>
-              <td class="${r.profit_pct>=0?'pos':'neg'}">${fmt(r.profit_pct,2)}</td>
-              <td class="${r.profit_abs>=0?'pos':'neg'}">${fmt(r.profit_abs,3)}</td>
-              <td>${r.open_date}</td>
-              <td>${r.close_date}</td>
-            </tr>`).join('')}
-        </tbody>
-      </table>
+    <div id="trades-table-container">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
+        ${toggleBtn('all', 'All', allTradesCache.length)}
+        ${toggleBtn('wins', 'Wins', wins.length)}
+        ${toggleBtn('losses', 'Losses', losses.length)}
+      </div>
+      <div class="panel-label" style="margin:0 0 8px;">${filtered.length} trade${filtered.length!==1?'s':''}</div>
+      <div class="detail-table-wrap">
+        <table>
+          <thead><tr><th>Pair</th><th>Enter Tag</th><th>Exit Reason</th><th>Profit %</th><th>Profit Abs</th><th>Open</th><th>Close</th></tr></thead>
+          <tbody>
+            ${filtered.map(r=>`
+              <tr>
+                <td class="lv-cell">${escapeHtml(r.pair)}</td>
+                <td>${escapeHtml(r.enter_tag)}</td>
+                <td>${escapeHtml(r.exit_reason)}</td>
+                <td class="${r.profit_pct>=0?'pos':'neg'}">${fmt(r.profit_pct,2)}</td>
+                <td class="${r.profit_abs>=0?'pos':'neg'}">${fmt(r.profit_abs,3)}</td>
+                <td>${escapeHtml(r.open_date)}</td>
+                <td>${escapeHtml(r.close_date)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
     </div>`;
 }
 
