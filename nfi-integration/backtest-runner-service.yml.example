@@ -1,0 +1,34 @@
+# backtest-runner-service.yml.example
+#
+# THIS FILE DOES NOT GO IN FREQFORGE. It's a reference snippet for your SEPARATE
+# freqtrade-nfi project (wherever your NostalgiaForInfinityX7.py, user_data/, and
+# configs/ actually live — NOT this FreqForge directory).
+#
+# FreqForge's own docker-compose.yml runs exactly one thing: the scorecard web
+# dashboard. This service runs backtests. Different job, different directory, different
+# compose file. Copy the block below into the docker-compose.yml that already sits
+# next to your NostalgiaForInfinityX7.py — pasting it into FreqForge's compose file
+# will not work, since none of these relative paths (./user_data, ./configs, etc.)
+# exist inside the FreqForge directory.
+#
+# Once it's in the right place, this is the service you're already using to run
+# backtests via `docker compose run --rm freqtrade_backtest_binance backtesting ...`
+# — nothing about how you invoke it changes, this is just the service definition
+# for reference/backup.
+
+services:
+  # --- DEDICATED Binance BACKTEST RUNNER (utility only — no FREQTRADE__ exchange overrides) ---
+  freqtrade_backtest_binance:
+    image: freqtradeorg/freqtrade:stable
+    build:
+      context: .
+      dockerfile: "./docker/Dockerfile.custom"
+    volumes:
+      - "./user_data:/freqtrade/user_data"
+      - "./user_data/data:/freqtrade/user_data/data"
+      - "./configs:/freqtrade/configs"
+      - "./NostalgiaForInfinityX7.py:/freqtrade/NostalgiaForInfinityX7.py"
+      - "./NFIx7BackTest.py:/freqtrade/NFIx7BackTest.py"
+    environment:
+      - TZ=Australia/Brisbane
+    command: ["--help"]

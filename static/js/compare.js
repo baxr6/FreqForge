@@ -18,10 +18,11 @@ function buildCompareToggle(){
   const wrap = document.getElementById('compare-toggle-wrap');
   if(ORDER.length < 2){ wrap.innerHTML = ''; return; }
   const visibleCount = ORDER.filter(passesFilters).length;
+  const chartIcon = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="vertical-align:-2px;margin-right:5px;"><rect x="1" y="9" width="3" height="6" rx="0.5" fill="currentColor"/><rect x="6.5" y="5" width="3" height="10" rx="0.5" fill="currentColor"/><rect x="12" y="1" width="3" height="14" rx="0.5" fill="currentColor"/></svg>`;
   wrap.innerHTML = `
     <div style="margin:14px clamp(20px,5vw,64px) 0;">
-      <button class="btn secondary" onclick="toggleCompareChart()">
-        &#128202; ${compareChartOpen ? 'Hide' : 'Show'} Comparison Chart ${activeExchangeFilter!=='all'||activeVersionFilter!=='all' ? `(${visibleCount} filtered runs)` : `(all ${visibleCount} runs)`}
+      <button class="pill-btn" onclick="toggleCompareChart()">
+        ${chartIcon}${compareChartOpen ? 'Hide' : 'Show'} Comparison Chart ${activeExchangeFilter!=='all'||activeVersionFilter!=='all' ? `(${visibleCount} filtered runs)` : `(all ${visibleCount} runs)`}
       </button>
     </div>`;
 }

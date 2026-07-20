@@ -39,6 +39,7 @@ function scoreWorstTrade(worstPct){
 function extractLeverageForSort(label){
   // Leverage no longer has to be at the start of the label (e.g. "NFIx7-3x-v17.4.413"),
   // so pull the first N-followed-by-x pattern out instead of assuming a leading number.
+  if(/spot/i.test(label)) return 0; // sorts before every leveraged run, predictably — NaN comparisons are not
   const m = label.match(/(\d+(?:\.\d+)?)x/i);
   return m ? parseFloat(m[1]) : parseFloat(label); // fall back to old behavior for odd labels
 }

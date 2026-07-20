@@ -35,6 +35,11 @@ freqforge/
 │       ├── compare.js        Multi-run cumulative-equity comparison chart
 │       └── app.js            init(), backup export/import
 ├── docs/images/               Screenshots + banner used in this README
+├── nfi-integration/
+│   ├── NFIx7BackTest.py       Ready-to-use strategy file — see "NFI version tracking"
+│   └── backtest-runner-service.yml.example
+│                              Reference only — goes in your freqtrade project's
+│                              compose file, NOT FreqForge's (see file header)
 ├── requirements.txt
 ├── Dockerfile
 └── docker-compose.yml
@@ -133,8 +138,10 @@ unzip -o backtest-result-2026-07-12_20-52-42.zip -d extracted/5x
 
 Leave the **Strategy** field empty and click **Parse log** — it reads the leverage
 straight from freqtrade's `"Using resolved strategy NFIx7BackTest5x"` line and combines
-it with today's date, producing something like `NFIx7-5x-20-07-2026` automatically.
-Typing anything yourself is always respected and never overwritten.
+it with the date the backtest actually ran (parsed from the log's own timestamps —
+not whenever you happen to upload it), producing something like
+`NFIx7-5x-20-07-2026` automatically. Typing anything yourself is always respected and
+never overwritten.
 
 The label only needs to be unique and easy to scan now — exchange, NFI version, and
 market type all live in their own searchable/filterable fields, so the label doesn't
@@ -343,51 +350,51 @@ survives rebuilds, consistent across every device on your network.
 ## NFI version tracking
 
 The scorecard parses a `nfi_version` field from a specific log line — but freqtrade
-doesn't print this automatically. Add one small class to your own `NFIx7BackTest.py`
-(never touches the auto-updated `NostalgiaForInfinityX7.py`, so it survives your
-`nfi-updater` pulling new releases):
+doesn't print this automatically. Rather than copy-paste code out of this README (easy
+to introduce a typo or miss a step — this exact thing tripped up an earlier setup),
+grab the ready-to-use file:
 
-```python
-import logging
-from NostalgiaForInfinityX7 import NostalgiaForInfinityX7
+**[`nfi-integration/NFIx7BackTest.py`](nfi-integration/NFIx7BackTest.py)**
 
-logger = logging.getLogger(__name__)
+**Install:** copy that file into the same folder as your `NostalgiaForInfinityX7.py`
+(check your own logs for `Using resolved strategy NostalgiaForInfinityX7 from
+'/path/to/NostalgiaForInfinityX7.py'` if you're not sure where that is — this file
+needs to sit right next to it). Never touches the auto-updated
+`NostalgiaForInfinityX7.py` itself, so it survives your `nfi-updater` pulling new
+releases.
 
-class NFIx7Version(NostalgiaForInfinityX7):
-    def bot_start(self, **kwargs) -> None:
-        super().bot_start(**kwargs)
-        logger.info(f"NFI strategy version: {self.version()}")
-```
+**Running backtests via Docker?** There's also
+[`nfi-integration/backtest-runner-service.yml.example`](nfi-integration/backtest-runner-service.yml.example)
+— a reference `docker-compose` service definition for the backtest runner. Read the
+comment at the top of that file first: it goes in your **freqtrade project's** own
+compose file, not FreqForge's — the two are separate Docker stacks in separate
+directories, and this one's paths (`./user_data`, `./NostalgiaForInfinityX7.py`, etc.)
+only resolve correctly from there.
 
-`bot_start()` is confirmed by freqtrade's own docs to fire once during backtesting,
-right after data loads — this produces a log line like `NFI strategy version:
-v17.4.413`, which the scorecard picks up automatically and uses both for display and
-for auto-assigning Strategy labels.
-
-**This one class covers both leverage and spot runs** — it carries no leverage-specific
-settings itself, those only live in the subclasses below it:
-
-```python
-class NFIx7BackTest3x(NFIx7Version):
-    futures_mode_leverage = 3.0
-    # ...same pattern for every leverage subclass
-```
-
-For spot, skip the subclasses entirely and point `--strategy` straight at
-`NFIx7Version` — it behaves identically to running `NostalgiaForInfinityX7` directly,
-with only the version-logging hook added:
+**Use it:**
 
 ```bash
-docker compose run --rm freqtrade_backtest_binance backtesting \
-  --config user_data/config_back_test.json \
-  --strategy NFIx7Version \
-  --timerange 20260201- \
-  --timeframe 5m \
-  --export trades --breakdown day \
-  --backtest-directory user_data/backtest_results/spot_test \
-  --notes baseline_spot \
-  2>&1 | tee user_data/backtest_results/spot_test/baseline_spot_console.log
+# Futures, at a specific leverage — point --strategy at the matching class
+--strategy NFIx7BackTest3x
+--strategy NFIx7BackTest5x
+# (2x/10x/15x also included; add more by copying the pattern for other leverage levels)
+
+# Spot — skip the leverage subclasses, point straight at the base class
+--strategy NFIx7Version
 ```
+
+Either way, `bot_start()` fires once during backtesting (confirmed by freqtrade's own
+docs, right after data loads) and logs `NFI strategy version: v17.4.413`, which the
+scorecard picks up automatically for both display and auto-generating Strategy labels.
+Leverage auto-detects from the class name for futures (`NFIx7BackTest3x` → `3x`), or
+falls back to `SPOT` when trading mode is spot and there's no leverage number to read.
+
+**If you rename the class, or use a different name than what's in the file** — just
+make sure your `--strategy` argument matches whatever class name is actually defined.
+freqtrade fails fast (won't start) if the name doesn't match, so this class of mistake
+is at least loud rather than silent — but the version line simply won't appear if the
+strategy that actually ran doesn't have this hook on it, whether that's a naming
+mismatch or forgetting to swap `--strategy` away from the base file entirely.
 
 ## Statistical significance (p-value)
 

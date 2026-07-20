@@ -94,11 +94,12 @@ function parseAndReview(){
   // untouched filename-based leverage guess. Never overwrites something the user typed.
   const labelEl = document.getElementById('lev-label');
   const isUntouched = labelEl.value.trim() === '' || /^\d+x$/i.test(labelEl.value.trim());
+  const runDate = parsed.run_date_label || todayDateLabel(); // fall back only if the log had no parseable timestamp
   if(isUntouched && parsed.detected_leverage){
-    labelEl.value = uniqueAutoLabel(`NFIx7-${parsed.detected_leverage}-${todayDateLabel()}`);
+    labelEl.value = uniqueAutoLabel(`NFIx7-${parsed.detected_leverage}-${runDate}`);
   } else if(/^\d+x$/i.test(labelEl.value.trim())){
     // fallback: leverage was already typed/guessed from filename, build the full label around it
-    labelEl.value = uniqueAutoLabel(`NFIx7-${labelEl.value.trim()}-${todayDateLabel()}`);
+    labelEl.value = uniqueAutoLabel(`NFIx7-${labelEl.value.trim()}-${runDate}`);
   }
 
   const detailSummary = `Pairs: ${pendingDetail.pairs.length} &middot; Exit reasons: ${pendingDetail.exits.length} &middot; Enter tags: ${pendingDetail.enters.length} &middot; Days: ${pendingDetail.days.length}`;

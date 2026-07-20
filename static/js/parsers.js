@@ -47,11 +47,18 @@ function parseFreqtradeLog(text){
   const tradingModeMatch = text.match(new RegExp('Trading\\s*[Mm]ode\\s*'+SEP+'\\s*(Spot|Futures)', 'i'));
   out.market_type = tradingModeMatch ? tradingModeMatch[1].toLowerCase() : null;
 
+  // Run date for the auto-label: freqtrade timestamps every log line — use the first
+  // one, which is when this backtest actually started. Not "today", since you might not
+  // upload a run the same day you ran it, and "today" would then be flatly wrong.
+  const runDateMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})\s+\d{2}:\d{2}:\d{2}/m);
+  out.run_date_label = runDateMatch ? `${runDateMatch[3]}-${runDateMatch[2]}-${runDateMatch[1]}` : null;
+
   const versionMatch = text.match(/NFI strategy version:\s*(\S+)/i);
   out.nfi_version = versionMatch ? versionMatch[1] : null;
 
   const strategyMatch = text.match(/Using resolved strategy \w*?(\d+x)\b/i);
-  out.detected_leverage = strategyMatch ? strategyMatch[1].toLowerCase() : null;
+  out.detected_leverage = strategyMatch ? strategyMatch[1].toLowerCase()
+    : (out.market_type === 'spot' ? 'SPOT' : null); // spot strategy classes have no "Nx" in their name to extract
 
   const daysMatch = text.match(new RegExp('Days win\\/draw\\/lose\\s*'+SEP+'\\s*(\\d+)\\s*\\/\\s*(\\d+)\\s*\\/\\s*(\\d+)', 'i'));
   out.win_days = daysMatch ? parseInt(daysMatch[1]) : null;
