@@ -1,6 +1,6 @@
 ![FreqForge](docs/images/banner/banner.png)
 
-# FreqForge
+# FreqForge by Deano
 
 Self-hosted leverage backtest scorecard for NFIx7. Real SQLite storage, served over
 HTTP, accessible from any device on your network while the server's running. Every
