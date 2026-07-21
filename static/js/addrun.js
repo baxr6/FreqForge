@@ -95,11 +95,12 @@ function parseAndReview(){
   const labelEl = document.getElementById('lev-label');
   const isUntouched = labelEl.value.trim() === '' || /^\d+x$/i.test(labelEl.value.trim());
   const runDate = parsed.run_date_label || todayDateLabel(); // fall back only if the log had no parseable timestamp
+  const family = parsed.strategy_family || 'NFIx7'; // fallback for logs where the family couldn't be detected
   if(isUntouched && parsed.detected_leverage){
-    labelEl.value = uniqueAutoLabel(`NFIx7-${parsed.detected_leverage}-${runDate}`);
+    labelEl.value = uniqueAutoLabel(`${family}-${parsed.detected_leverage}-${runDate}`);
   } else if(/^\d+x$/i.test(labelEl.value.trim())){
     // fallback: leverage was already typed/guessed from filename, build the full label around it
-    labelEl.value = uniqueAutoLabel(`NFIx7-${labelEl.value.trim()}-${runDate}`);
+    labelEl.value = uniqueAutoLabel(`${family}-${labelEl.value.trim()}-${runDate}`);
   }
 
   const detailSummary = `Pairs: ${pendingDetail.pairs.length} &middot; Exit reasons: ${pendingDetail.exits.length} &middot; Enter tags: ${pendingDetail.enters.length} &middot; Days: ${pendingDetail.days.length}`;
@@ -114,7 +115,7 @@ function parseAndReview(){
     ['pf','Profit Factor'], ['sqn','SQN'], ['trades','Total Trades'], ['win_days','Win Days'],
     ['lose_days','Lose Days'], ['worst_trade','Worst Trade %'], ['liq_count','Liquidations'],
     ['sl_count','Stop-loss Exits'], ['final_bal','Final Balance'],
-    ['period_start','Period Start'], ['period_end','Period End'], ['max_trades','Max Open Trades'], ['deposit','Deposit (USDT)'], ['exchange','Exchange'], ['nfi_version','NFI Version'], ['market_type','Market Type (spot/futures)'], ['grind_mode_max_slots','Grind Mode Max Slots (manual)']
+    ['period_start','Period Start'], ['period_end','Period End'], ['max_trades','Max Open Trades'], ['deposit','Deposit (USDT)'], ['exchange','Exchange'], ['nfi_version','NFI Version'], ['strategy_family','Strategy Family (e.g. NFIx7)'], ['market_type','Market Type (spot/futures)'], ['grind_mode_max_slots','Grind Mode Max Slots (manual)']
   ];
 
   document.getElementById('review-panel').innerHTML = `
@@ -133,7 +134,7 @@ async function saveRun(){
   const lev = document.getElementById('lev-label').value.trim();
   if(!lev){ alert('Enter a strategy name first (e.g. "3x-413").'); return; }
   const numFields = ['cagr','sharpe','sortino','calmar','maxdd','pf','sqn','trades','win_days','lose_days','worst_trade','liq_count','sl_count','final_bal','max_trades','deposit','grind_mode_max_slots'];
-  const textFields = ['period_start','period_end','exchange','nfi_version'];
+  const textFields = ['period_start','period_end','exchange','nfi_version','strategy_family'];
   const run = {};
   numFields.forEach(k=>{
     const el = document.getElementById('rv-'+k);

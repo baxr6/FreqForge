@@ -60,6 +60,13 @@ function parseFreqtradeLog(text){
   out.detected_leverage = strategyMatch ? strategyMatch[1].toLowerCase()
     : (out.market_type === 'spot' ? 'SPOT' : null); // spot strategy classes have no "Nx" in their name to extract
 
+  // Strategy family/generation (e.g. NFIx7 vs NFIx6) — matters because these are
+  // genuinely different strategy codebases, not just config variations. Normalizes
+  // both naming conventions actually seen in real logs to the same canonical label:
+  // "NFIx7BackTest3x" and "NostalgiaForInfinityX7" both resolve to "NFIx7".
+  const familyMatch = text.match(/(?:NFIx|NostalgiaForInfinityX)(\d+)/i);
+  out.strategy_family = familyMatch ? 'NFIx' + familyMatch[1] : null;
+
   const daysMatch = text.match(new RegExp('Days win\\/draw\\/lose\\s*'+SEP+'\\s*(\\d+)\\s*\\/\\s*(\\d+)\\s*\\/\\s*(\\d+)', 'i'));
   out.win_days = daysMatch ? parseInt(daysMatch[1]) : null;
   out.lose_days = daysMatch ? parseInt(daysMatch[3]) : null;

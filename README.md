@@ -362,6 +362,26 @@ everything in one batch. Falls back gracefully: a log with no matching trades.js
 still saves fine, just without the trades-dependent tabs (same as adding it manually
 without a trades.json).
 
+## Strategy family tracking
+
+FreqForge no longer assumes every run is NFIx7 — the strategy generation (NFIx7 vs
+NFIx6, or whatever else you test) is auto-detected from the log's own "Using resolved
+strategy" line and normalized to a canonical label regardless of which class-naming
+convention was actually used (`NFIx7BackTest3x` and `NostalgiaForInfinityX7` both
+resolve to `NFIx7`). Feeds the auto-generated Strategy label (`NFIx7-3x-19-07-2026` vs
+`NFIx6-3x-19-07-2026`) and a new Strategy filter dropdown alongside Market/Exchange/
+Version. Falls back to `NFIx7` if a log's strategy line doesn't match either known
+naming pattern, rather than leaving it blank.
+
+## Compact grid view
+
+Once you're past 6 runs, the run selector automatically switches from the horizontal
+tab strip to a wrapping grid of cards — each showing the label, grade, and
+strategy/market/exchange badges at a glance, without every tile getting squeezed
+thinner as you add more runs the way the tab strip does. A **Tabs / Grid** toggle
+appears once you have 4+ runs so you can switch manually any time; your choice sticks
+for the rest of the session once you pick one.
+
 ## Progress over time
 
 Alongside the Comparison Chart toggle, a second button — **📈 Show Progress Over

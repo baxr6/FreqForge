@@ -92,7 +92,7 @@ function render(lev){
   renderRunBanner(lev);
   triggerRobustnessCheck(lev);
   const d = DATA[lev];
-  document.querySelectorAll('.lev-tab').forEach(b=> b.classList.toggle('active', b.dataset.lev===lev));
+  document.querySelectorAll('.lev-tab, .grid-tile').forEach(b=> b.classList.toggle('active', b.dataset.lev===lev));
   document.querySelectorAll('#history-body tr').forEach(r=> r.classList.toggle('row-active', r.dataset.lev===lev));
 
   const gcolor = GRADE_COLOR[d.grade];

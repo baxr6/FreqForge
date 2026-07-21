@@ -137,6 +137,7 @@
   }
   .lev-tab{
     flex:1;
+    min-width:0;
     background:var(--panel);
     border:none;
     border-top:1px solid var(--line);
@@ -151,7 +152,7 @@
     transition:background .18s var(--ease), color .18s var(--ease), transform .12s var(--ease);
     position:relative;
   }
-  .lev-tab .lv{font-size:15px;font-weight:600;display:block;color:inherit;letter-spacing:.02em;}
+  .lev-tab .lv{font-size:15px;font-weight:600;display:block;color:inherit;letter-spacing:.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .lev-tab .gr{font-size:10px;letter-spacing:.08em;display:block;margin-top:5px;}
   .lev-tab:hover{background:var(--panel-hover);color:var(--text-dim);transform:translateY(-1px);}
   .lev-tab.active{
@@ -165,6 +166,31 @@
   .lev-tab[data-band="B"] .gr{color:var(--green);}
   .lev-tab[data-band="C"] .gr{color:var(--amber);}
   .lev-tab[data-band="D"] .gr, .lev-tab[data-band="F"] .gr{color:var(--red);}
+
+  /* ---------- COMPACT GRID (alternative to the tab strip once there are many runs) ---------- */
+  .selector-view-toggle{
+    display:flex;justify-content:flex-end;gap:6px;padding:0 clamp(20px,5vw,64px);margin-top:14px;
+  }
+  .selector-grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;
+    padding:0 clamp(20px,5vw,64px);margin-top:10px;
+  }
+  .grid-tile{
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:12px 14px;cursor:pointer;text-align:left;
+    transition:background .15s var(--ease), border-color .15s var(--ease), transform .12s var(--ease);
+  }
+  .grid-tile:hover{background:var(--panel-hover);border-color:var(--text-faint);transform:translateY(-1px);}
+  .grid-tile.active{background:var(--panel-raised);border-color:var(--accent,var(--green));box-shadow:0 4px 16px -4px rgba(0,0,0,0.4);}
+  .grid-tile .lv{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .grid-tile .grid-meta{display:flex;justify-content:space-between;align-items:center;margin-top:6px;}
+  .grid-tile .gr{font-family:var(--mono);font-size:11px;letter-spacing:.05em;}
+  .grid-tile .grid-badges{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;}
+  .grid-tile .grid-badge{font-family:var(--mono);font-size:9px;color:var(--text-faint);background:var(--void);border:1px solid var(--line);border-radius:3px;padding:1px 5px;}
+  .grid-tile[data-band="A"] .gr{color:var(--green);}
+  .grid-tile[data-band="B"] .gr{color:var(--green);}
+  .grid-tile[data-band="C"] .gr{color:var(--amber);}
+  .grid-tile[data-band="D"] .gr, .grid-tile[data-band="F"] .gr{color:var(--red);}
 
   /* ---------- ADD RUN PANEL ---------- */
   .add-run{
