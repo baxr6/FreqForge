@@ -1,8 +1,8 @@
 ![FreqForge](docs/images/banner/banner.png)
 
-# FreqForge by Deano
+# FreqForge
 
-Self-hosted leverage backtest analytics for freqtrade strategy's (Tested on NostalgiaForInfinityx7). Real SQLite storage, served over
+Self-hosted leverage backtest scorecard for NFIx7. Real SQLite storage, served over
 HTTP, accessible from any device on your network while the server's running. Every
 score is computed **independently per run against fixed thresholds** — adding,
 removing, or editing one run never changes another's grade. Weights and thresholds
@@ -83,6 +83,13 @@ python app.py
 ```
 
 Open `http://localhost:5055`.
+
+**Updating an existing non-Docker install?** Re-run `pip install -r requirements.txt`
+before restarting `app.py`, not just the restart alone — new dependencies do get added
+between updates (e.g. `requests`, added for the price-chart feature), and a plain
+restart won't pick those up the way a Docker rebuild automatically does. If you forget,
+`app.py` will fail to start with a clear message telling you exactly this, rather than
+a raw Python traceback.
 
 ---
 
@@ -266,6 +273,31 @@ version/exchange/max-trades combinations that scrolling through tabs stops worki
 Combines with the Market/Exchange/Version dropdown filters, which all narrow the same
 visible set together.
 
+## Walk-forward consistency
+
+A third section in the Monte Carlo tab, below in-sample/out-of-sample. Splits trades
+into 5 equal sequential windows and shows profit factor and return in each
+independently — generalizes the single 80/20 split to catch inconsistency a single cut
+could miss, like a weak stretch in the middle of the period rather than just at the
+end. **Worth being precise about what this is and isn't**: it tests whether an
+already-completed backtest's results hold up consistently across sequential windows —
+it can't re-fit strategy parameters per window the way true walk-forward optimization
+does, since that would require re-running backtests, not just analyzing one. Needs at
+least 40 trades (8 per window minimum) with trades.json loaded.
+
+## Statistical comparison between runs
+
+A third toggle next to the Comparison Chart and Progress Over Time — pick any two runs
+and get a proper significance test (Welch's t-test) on whether the difference in their
+average per-trade return is real or could plausibly be noise, given how many trades
+each has. Matters because "Run A's average is higher" alone doesn't tell you that — a
+big gap on a handful of trades can be pure chance, while a small gap on hundreds of
+trades can be a genuine, repeatable difference. Reports the actual p-value rather than
+just a verdict; below 0.05 is flagged as a statistically meaningful difference, at or
+above isn't. Recommends at least 20 trades per run, and works with fewer but flags the
+result as one to treat cautiously. Needs trades.json loaded for both runs being
+compared.
+
 ## In-sample vs out-of-sample
 
 Also in the Monte Carlo tab, below the reshuffling analysis. Splits your trades
@@ -275,6 +307,41 @@ backtests overstate what to expect going forward: a strategy that looks great ov
 only because of strong early performance, with the tail end quietly losing money.
 Needs at least 10 trades with trades.json loaded, and at least 3 trades in the final
 20% to produce a meaningful comparison.
+
+## Price chart with real entries/exits
+
+A **Chart** button on every row in the Trades tab opens a real candlestick chart
+(fetched from Binance's public API) with that trade's actual entry and exit points
+overlaid at their real price and time.
+
+![Trade entry/exit overlaid on a real price chart](docs/images/screenshots/visual-chart.png)
+
+**How it fetches data — tries direct first, falls back automatically**: the browser
+attempts a direct fetch to Binance first (one less network hop, confirmed working via
+real testing during development). If that fails for any reason — CORS starts blocking
+it (reported inconsistent over time on Binance's side across different setups), a
+firewall or VPN interferes, anything — it automatically falls back to FreqForge's own
+backend proxying the request instead (`/api/candles` in `app.py`), which has no CORS
+restriction at all since it's a server-to-server call. Verified in testing that both
+requests fire in the correct order and the fallback genuinely activates when the direct
+attempt fails, rather than just being unreachable dead code. The chart header shows
+which path actually served the data ("fetched directly" vs "via FreqForge backend"),
+so you can see which one is running for you.
+
+**What this needs**: either your browser or your self-hosted FreqForge instance (or
+both — whichever path ends up being used) needs outbound internet access to
+`api.binance.com` (spot pairs) or `fapi.binance.com` (futures pairs, detected from the
+`:` in pair notation like `BTC/USDT:USDT`). If both paths are blocked — your browser
+can't reach Binance *and* your server can't either — this feature won't be able to
+load a chart, but the rest of FreqForge is completely unaffected either way.
+
+**Honest note on testing**: the rendering logic (candlestick drawing, entry/exit
+marker placement) was tested directly against realistic mock data and confirmed
+correct, and the fallback chain's request order was verified end-to-end. But the
+actual live Binance data flowing through in a real browser, with real network access,
+wasn't something this development environment could fully exercise (its own network
+access is restricted to a small package-registry allowlist that doesn't include
+Binance) — that part came down to your own testing.
 
 ## Bulk import
 

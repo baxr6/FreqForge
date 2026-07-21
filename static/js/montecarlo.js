@@ -34,6 +34,75 @@ function computeSplitStats(trades, startingEquity){
   };
 }
 
+function computeWalkForwardSegments(trades, startingEquity, nSegments){
+  const sorted = [...trades].sort((a,b) => new Date(a.open_date) - new Date(b.open_date));
+  const segments = [];
+  const segSize = Math.floor(sorted.length / nSegments);
+  let equity = startingEquity;
+  for(let i=0;i<nSegments;i++){
+    const start = i*segSize;
+    const end = (i===nSegments-1) ? sorted.length : start+segSize; // last segment absorbs any remainder
+    const segTrades = sorted.slice(start, end);
+    const stats = computeSplitStats(segTrades, equity);
+    segments.push({ segment: i+1, ...stats });
+    equity += stats.totalProfit; // roll equity forward so each segment's % is basis-correct
+  }
+  return segments;
+}
+
+function renderWalkForward(trades, runMeta){
+  const MIN_TRADES_PER_SEGMENT = 8;
+  const nSegments = 5;
+  if(!trades || trades.length < MIN_TRADES_PER_SEGMENT * nSegments){
+    return `<div class="empty-note">Need at least ${MIN_TRADES_PER_SEGMENT * nSegments} trades with trades.json loaded for a meaningful ${nSegments}-segment walk-forward view (fewer trades per segment gets too noisy to read).</div>`;
+  }
+
+  const startingEquity = (runMeta && runMeta.deposit) ? runMeta.deposit : 500;
+  const segments = computeWalkForwardSegments(trades, startingEquity, nSegments);
+  const profitableSegments = segments.filter(s => s.totalProfit > 0).length;
+  const maxPF = Math.max(...segments.map(s => isFinite(s.profitFactor) ? s.profitFactor : 0));
+
+  const barsHTML = segments.map(s => {
+    const heightPct = isFinite(s.profitFactor) ? Math.max(4, Math.min(100, (s.profitFactor/(maxPF||1))*100)) : 100;
+    const color = s.totalProfit >= 0 ? 'var(--green)' : 'var(--red)';
+    return `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text-faint);">${isFinite(s.profitFactor)?fmt(s.profitFactor,1):'&infin;'}</div>
+        <div style="width:100%;height:120px;display:flex;align-items:flex-end;">
+          <div style="width:100%;height:${heightPct}%;background:${color};border-radius:3px 3px 0 0;opacity:0.85;"></div>
+        </div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text-faint);">Seg ${s.segment}</div>
+        <div style="font-family:var(--mono);font-size:10.5px;color:${color};">${s.totalProfit>=0?'+':''}${fmt(s.totalProfitPct,1)}%</div>
+      </div>`;
+  }).join('');
+
+  const verdict = profitableSegments === nSegments
+    ? {label:'CONSISTENT ACROSS ALL SEGMENTS', color:'var(--green)', note:`Every one of the ${nSegments} sequential windows was profitable — no single lucky stretch is carrying the whole result.`}
+    : profitableSegments >= nSegments - 1
+    ? {label:'MOSTLY CONSISTENT', color:'var(--green)', note:`${profitableSegments} of ${nSegments} sequential windows were profitable — one weaker stretch, not a pattern of decay.`}
+    : profitableSegments <= 1
+    ? {label:'CONCENTRATED IN ONE WINDOW', color:'var(--red)', note:`Only ${profitableSegments} of ${nSegments} sequential windows was profitable — most of this backtest's edge may be coming from a narrow stretch rather than a repeatable process.`}
+    : {label:'MIXED CONSISTENCY', color:'var(--amber)', note:`${profitableSegments} of ${nSegments} sequential windows were profitable — some real inconsistency across the period, worth a closer look at which segment(s) struggled.`};
+
+  return `
+    <div class="panel" style="margin-top:20px;">
+      <div class="panel-label">Walk-Forward Consistency</div>
+      <div class="storage-note" style="margin:6px 0 16px;">
+        Splits your trades into ${nSegments} equal sequential windows and checks profit factor and
+        return in each one independently &mdash; a generalization of the in-sample/out-of-sample
+        split above to catch inconsistency that a single 80/20 cut could miss (e.g. a weak stretch
+        in the middle of the period). This tests consistency of an already-completed backtest, not
+        true walk-forward optimization &mdash; it can't re-fit strategy parameters per window, only
+        check whether the same fixed strategy held up across sequential stretches of time.
+      </div>
+      <div style="display:flex;gap:10px;margin:16px 0;">${barsHTML}</div>
+      <div style="padding:12px 16px;border-radius:8px;background:var(--panel-raised);border:1px solid ${verdict.color};">
+        <b style="color:${verdict.color};">${verdict.label}</b>
+        <div style="font-size:12.5px;color:var(--text-dim);margin-top:6px;">${verdict.note}</div>
+      </div>
+    </div>`;
+}
+
 function renderInOutSample(trades, runMeta){
   if(!trades || trades.length < 10){
     return '<div class="empty-note">Need at least 10 trades with trades.json loaded for a meaningful in-sample/out-of-sample split.</div>';

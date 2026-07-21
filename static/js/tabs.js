@@ -76,7 +76,7 @@ async function switchSubTab(lev, kind){
   else if(kind === 'yearly') sub.innerHTML = renderYearly(rows);
   else if(kind === 'trades') sub.innerHTML = renderTradesTable(rows, 'all');
   else if(kind === 'grind') sub.innerHTML = renderGrindAnalysis(rows);
-  else if(kind === 'montecarlo') sub.innerHTML = renderMonteCarlo(rows, DATA[lev]) + renderInOutSample(rows, DATA[lev]);
+  else if(kind === 'montecarlo') sub.innerHTML = renderMonteCarlo(rows, DATA[lev]) + renderInOutSample(rows, DATA[lev]) + renderWalkForward(rows, DATA[lev]);
   else sub.innerHTML = renderGenericDetailTable(rows, kind, pairBreakdown);
 }
 
@@ -381,6 +381,7 @@ function renderTradesTableBody(){
   const wins = allTradesCache.filter(r => r.profit_pct >= 0).sort((a,b)=>b.profit_pct-a.profit_pct);
   const losses = allTradesCache.filter(r => r.profit_pct < 0).sort((a,b)=>a.profit_pct-b.profit_pct);
   const filtered = tradesFilterMode === 'wins' ? wins : tradesFilterMode === 'losses' ? losses : allTradesCache;
+  bindPriceChartTrades(filtered); // so each row's "Chart" button can reference its index
 
   const toggleBtn = (mode, label, count) => `
     <button class="pill-btn" style="${tradesFilterMode===mode ? 'background:rgba(62,161,255,0.22);' : ''}" onclick="setTradesFilter('${mode}')">${label} (${count})</button>`;
@@ -395,9 +396,9 @@ function renderTradesTableBody(){
       <div class="panel-label" style="margin:0 0 8px;">${filtered.length} trade${filtered.length!==1?'s':''}</div>
       <div class="detail-table-wrap">
         <table>
-          <thead><tr><th>Pair</th><th>Enter Tag</th><th>Exit Reason</th><th>Profit %</th><th>Profit Abs</th><th>Open</th><th>Close</th></tr></thead>
+          <thead><tr><th>Pair</th><th>Enter Tag</th><th>Exit Reason</th><th>Profit %</th><th>Profit Abs</th><th>Open</th><th>Close</th><th></th></tr></thead>
           <tbody>
-            ${filtered.map(r=>`
+            ${filtered.map((r,i)=>`
               <tr>
                 <td class="lv-cell">${escapeHtml(r.pair)}</td>
                 <td>${escapeHtml(r.enter_tag)}</td>
@@ -406,6 +407,7 @@ function renderTradesTableBody(){
                 <td class="${r.profit_abs>=0?'pos':'neg'}">${fmt(r.profit_abs,3)}</td>
                 <td>${escapeHtml(r.open_date)}</td>
                 <td>${escapeHtml(r.close_date)}</td>
+                <td><button class="pill-btn" style="padding:3px 8px;font-size:10px;" onclick="showPriceChart(${i})" title="View this trade on a real price chart">Chart</button></td>
               </tr>`).join('')}
           </tbody>
         </table>

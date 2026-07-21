@@ -17,6 +17,25 @@ import json
 from pathlib import Path
 from flask import Flask, jsonify, request, g, send_from_directory
 
+try:
+    import requests
+except ImportError:
+    print(
+        "\n"
+        "ERROR: the 'requests' package is missing.\n"
+        "\n"
+        "If you're running FreqForge via Docker, this shouldn't happen — try:\n"
+        "    docker compose up -d --build\n"
+        "(--build forces a fresh dependency install; without it, an old image can stick around)\n"
+        "\n"
+        "If you're running plain Python (no Docker) and this is an existing install being\n"
+        "updated rather than a fresh one, this dependency is new as of the price-chart\n"
+        "feature and won't be there yet just from restarting the app. Run:\n"
+        "    pip install -r requirements.txt\n"
+        "then start app.py again.\n"
+    )
+    raise SystemExit(1)
+
 BASE_DIR = Path(__file__).parent
 DB_PATH = os.environ.get("SCORECARD_DB_PATH", str(BASE_DIR / "data" / "leverage_runs.db"))
 CONFIG_PATH = os.environ.get("SCORECARD_CONFIG_PATH", str(BASE_DIR / "data" / "scoring_config.json"))
@@ -329,6 +348,46 @@ def import_all():
         )
     db.commit()
     return jsonify({"ok": True, "imported": len(body)})
+
+
+@app.route("/api/candles", methods=["GET"])
+def get_candles():
+    """Proxies historical OHLCV candles from Binance's public API. Done server-side
+    rather than having the browser fetch Binance directly — CORS support on Binance's
+    public endpoints has been inconsistently reported as working/broken over time by
+    other developers, and Python's requests library has no CORS restriction at all
+    (that's a browser-only mechanism), so proxying here is the more reliable path
+    regardless of Binance's current CORS policy."""
+    pair = request.args.get("pair", "")
+    interval = request.args.get("interval", "15m")
+    start_ts = request.args.get("start_ts", type=int)
+    end_ts = request.args.get("end_ts", type=int)
+
+    if not pair or not start_ts or not end_ts:
+        return jsonify({"error": "pair, start_ts, and end_ts are required"}), 400
+
+    # Freqtrade pair notation -> Binance symbol: "BTC/USDT:USDT" (futures) or
+    # "BTC/USDT" (spot) both need to become "BTCUSDT" for Binance's API.
+    is_futures = ":" in pair
+    symbol = pair.split(":")[0].replace("/", "")
+    base_url = "https://fapi.binance.com/fapi/v1/klines" if is_futures else "https://api.binance.com/api/v3/klines"
+
+    try:
+        resp = requests.get(base_url, params={
+            "symbol": symbol, "interval": interval,
+            "startTime": start_ts, "endTime": end_ts, "limit": 500,
+        }, timeout=10)
+        if not resp.ok:
+            return jsonify({"error": f"Binance API returned {resp.status_code}", "detail": resp.text[:300]}), 502
+        raw = resp.json()
+    except requests.RequestException as e:
+        return jsonify({"error": f"Could not reach Binance: {str(e)}"}), 502
+
+    candles = [{
+        "time": row[0], "open": float(row[1]), "high": float(row[2]),
+        "low": float(row[3]), "close": float(row[4]), "volume": float(row[5]),
+    } for row in raw]
+    return jsonify({"symbol": symbol, "market": "futures" if is_futures else "spot", "candles": candles})
 
 
 if __name__ == "__main__":
