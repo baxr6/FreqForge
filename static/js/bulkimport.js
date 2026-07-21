@@ -4,6 +4,14 @@
 
 let bulkDetectedRuns = []; // [{label, parsed, pairedTradesResult, include}]
 
+function fullTimestampLabel(date){
+  const dd = String(date.getDate()).padStart(2,'0');
+  const mm = String(date.getMonth()+1).padStart(2,'0');
+  const hh = String(date.getHours()).padStart(2,'0');
+  const min = String(date.getMinutes()).padStart(2,'0');
+  return `${dd}-${mm}-${date.getFullYear()}-${hh}${min}`;
+}
+
 function extractLogTimestamp(text){
   const m = text.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/m);
   if(!m) return null;
@@ -62,8 +70,9 @@ async function handleBulkFiles(files){
   for(const file of logFiles){
     const text = await readFileAsText(file);
     const parsed = parseFreqtradeLog(text);
+    const detail = parseAllDetailTables(text); // pairs/exits/enters/days sub-tables — same as the single-run flow, previously missing entirely from bulk import
     const timestamp = extractLogTimestamp(text) || new Date(file.lastModified);
-    parsedLogs.push({ file, text, parsed, timestamp });
+    parsedLogs.push({ file, text, parsed, detail, timestamp });
   }
 
   // Read + timestamp every trades.json candidate, and validate it's actually a trades export
@@ -96,9 +105,13 @@ async function handleBulkFiles(files){
   // Build the detected-runs list with auto-generated labels (same convention as
   // single-add: leverage/SPOT + run date, deduplicated against existing saved runs)
   bulkDetectedRuns = parsedLogs.map(log => {
-    const runDate = log.parsed.run_date_label || todayDateLabel();
+    // Bulk import specifically benefits from time precision, not just date — this is
+    // the flow most likely to import several same-leverage, same-day runs in one
+    // batch, so the label itself carries enough detail to tell them apart at a glance
+    // rather than relying on an opaque "-2" suffix from the collision-avoidance below.
+    const stamp = log.timestamp ? fullTimestampLabel(log.timestamp) : (log.parsed.run_date_label || todayDateLabel());
     const leverageToken = log.parsed.detected_leverage || 'UNKNOWN';
-    const label = uniqueAutoLabel(`NFIx7-${leverageToken}-${runDate}`);
+    const label = uniqueAutoLabel(`NFIx7-${leverageToken}-${stamp}`);
     return { label, ...log, include: true };
   });
 
@@ -156,7 +169,7 @@ async function saveBulkRuns(){
       // save flow already does — sending an explicit `null` for e.g. calmar overrides
       // the backend's own "default to 0 if the key is missing entirely" fallback, and
       // later renders as `null.toFixed()` crashing the history table.
-      const TEXT_FIELD_NAMES = new Set(['period_start','period_end','exchange','market_type']);
+      const TEXT_FIELD_NAMES = new Set(['period_start','period_end','exchange','market_type','nfi_version','strategy_family']);
       for(const k of Object.keys(runBody)){
         if(!TEXT_FIELD_NAMES.has(k) && (runBody[k] === null || Number.isNaN(runBody[k]))){
           runBody[k] = 0;
@@ -182,6 +195,18 @@ async function saveBulkRuns(){
         if(tr.loser_holding_avg != null) extras.loser_holding_avg = tr.loser_holding_avg;
         if(!run.parsed.market_type && tr.market_type_from_pairs) extras.market_type = tr.market_type_from_pairs;
         if(Object.keys(extras).length) await apiSaveRun(run.label, { ...runBody, ...extras });
+      }
+
+      // pairs/exits/enters/days — parsed from the log text (not trades.json), same as
+      // the single-run flow already does via its own pendingDetail loop. This was
+      // missing entirely from bulk import until now.
+      if(run.detail){
+        for(const [kind, rows] of Object.entries(run.detail)){
+          if(!rows || !rows.length) continue;
+          await fetch(`${API}/${encodeURIComponent(run.label)}/detail/${kind}`, {
+            method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(rows)
+          });
+        }
       }
       saved++;
     }catch(e){

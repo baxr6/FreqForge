@@ -261,8 +261,20 @@ function welchTTest(sampleA, sampleB){
   const mA = meanArr(sampleA), mB = meanArr(sampleB);
   const varA = varianceArr(sampleA, mA), varB = varianceArr(sampleB, mB);
   const se = Math.sqrt(varA/nA + varB/nB);
-  const t = se > 0 ? (mA - mB) / se : 0;
-  const pValue = se > 0 ? 2 * (1 - normalCDF(Math.abs(t))) : 1;
+  if(se === 0){
+    // Zero within-group variance in both samples — every trade in each group is
+    // identical. If the means also match, there's genuinely no difference to detect
+    // (t=0, p=1, correctly). But if the means differ, zero internal noise is the
+    // strongest possible evidence of a real difference, not the weakest — the
+    // earlier version of this function had this backwards, reporting "no difference"
+    // for cases like every-trade-is-1% vs every-trade-is-3%, which is about as
+    // unambiguous a difference as trade data can show.
+    const t = mA === mB ? 0 : (mA > mB ? Infinity : -Infinity);
+    const pValue = mA === mB ? 1 : 0;
+    return { meanA: mA, meanB: mB, nA, nB, t, pValue };
+  }
+  const t = (mA - mB) / se;
+  const pValue = 2 * (1 - normalCDF(Math.abs(t)));
   return { meanA: mA, meanB: mB, nA, nB, t, pValue };
 }
 

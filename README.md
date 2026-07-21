@@ -356,6 +356,13 @@ the filename), it falls back to the file's own last-modified time instead of fai
 to pair at all. Unmatched trades.json files are reported and ignored rather than
 silently guessed at.
 
+Auto-generated labels use the full timestamp (`NFIx7-3x-19-07-2026-2230`), not just the
+date — bulk import is specifically the flow most likely to bring in several
+same-leverage runs from the same day in one batch, so the label itself carries enough
+detail to tell them apart at a glance, rather than leaning on an opaque `-2` suffix.
+That suffix is still there as a safety net for the rarer case of two logs starting in
+the exact same minute.
+
 Review each detected run in a compact table before saving — editable label, CAGR
 preview, pairing status, and an include/exclude checkbox per row — then save
 everything in one batch. Falls back gracefully: a log with no matching trades.json

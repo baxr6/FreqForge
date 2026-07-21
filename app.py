@@ -170,13 +170,28 @@ DETAIL_TABLES = {
 # like this is something a static analyzer can trace directly as "not user-controlled",
 # rather than a value that depends on another database call, which is harder to prove
 # safe from static analysis alone even when it's genuinely effective at runtime.
-_STAT_TABLE_COLS = {"label", "count", "avg_profit_pct", "tot_profit_usdt", "tot_profit_pct", "duration", "win", "draw", "loss", "win_pct"}
+#
+# Ordered column lists per detail table, matching the CREATE TABLE statements in
+# init_db() exactly. Tuples (not sets) because column order has to match the VALUES
+# placeholders below one-to-one.
+_STAT_TABLE_COLS = ("label", "count", "avg_profit_pct", "tot_profit_usdt", "tot_profit_pct", "duration", "win", "draw", "loss", "win_pct")
 DETAIL_TABLE_COLUMNS = {
     "pair_stats": _STAT_TABLE_COLS,
     "exit_stats": _STAT_TABLE_COLS,
     "enter_stats": _STAT_TABLE_COLS,
-    "day_stats": {"day", "trades", "tot_profit_usdt", "profit_factor", "win", "draw", "loss", "win_pct"},
-    "trades": {"pair", "profit_pct", "profit_abs", "open_date", "close_date", "exit_reason", "enter_tag", "duration_min", "order_count", "orders_json", "is_short"},
+    "day_stats": ("day", "trades", "tot_profit_usdt", "profit_factor", "win", "draw", "loss", "win_pct"),
+    "trades": ("pair", "profit_pct", "profit_abs", "open_date", "close_date", "exit_reason", "enter_tag", "duration_min", "order_count", "orders_json", "is_short"),
+}
+
+# Fully static INSERT statement text per table, built once at import time from the
+# fixed column lists above — never touches request data. Column names never flow from
+# user input into SQL text anywhere in this file; only values do, and those go through
+# ? placeholders exactly as before. Built this way (rather than filtering row.keys()
+# against a whitelist inline) so there's nothing for a static analyzer to need to trace
+# through — the SQL text is a plain hardcoded string per table, period.
+DETAIL_INSERT_SQL = {
+    tbl: f"INSERT INTO {tbl} (lev, {', '.join(cols)}) VALUES (?, {', '.join('?' for _ in cols)})"
+    for tbl, cols in DETAIL_TABLE_COLUMNS.items()
 }
 
 
@@ -197,20 +212,16 @@ def put_detail(lev, kind):
         return jsonify({"error": "unknown kind"}), 400
     rows = request.get_json(force=True) or []
     db = get_db()
-    # Column names can't be parameterized in SQL the way values can (placeholders only
-    # work for values) — so instead of trying to escape/sanitize arbitrary column names
-    # from the request body, validate them against a static, hardcoded allowlist first.
-    # Anything not in this fixed set never reaches the SQL string at all.
-    valid_cols = DETAIL_TABLE_COLUMNS.get(tbl, set())
+    insert_sql = DETAIL_INSERT_SQL[tbl]  # fully static text, built once at import time — never touches request data
+    cols = DETAIL_TABLE_COLUMNS[tbl]
     db.execute(f"DELETE FROM {tbl} WHERE lev = ?", (lev,))
     for row in rows:
-        cols = [c for c in row.keys() if c in valid_cols]
-        if not cols:
-            continue
-        placeholders = ", ".join("?" for _ in cols)
-        col_names = ", ".join(cols)
-        db.execute(f"INSERT INTO {tbl} (lev, {col_names}) VALUES (?, {placeholders})",
-                   [lev, *[row[c] for c in cols]])
+        # Every known column gets a value (None if the row didn't include it) — this
+        # always inserts the full fixed row shape rather than a dynamic subset, so
+        # there's no data-dependent column list built from the request at all, only
+        # ordinary values passed through ? placeholders same as everywhere else.
+        values = [row.get(c) for c in cols]
+        db.execute(insert_sql, [lev, *values])
     db.commit()
     return jsonify({"ok": True, "count": len(rows)})
 
