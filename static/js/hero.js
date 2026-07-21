@@ -36,7 +36,7 @@ function renderHero(){
 
   const dayWinRate = (bestD.win_days+bestD.lose_days) > 0 ? bestD.win_days/(bestD.win_days+bestD.lose_days)*100 : 0;
   document.getElementById('banner-stats').innerHTML = `
-    <div class="bstat"><div class="bk">Total Return</div><div class="bv" style="color:var(--green)">+${fmt(bestD.cagr,1)}%</div><div class="bs">CAGR (${best.toUpperCase()})</div></div>
+    <div class="bstat"><div class="bk">Total Return</div><div class="bv" style="color:var(--green)">+${fmt(bestD.cagr,1)}%</div><div class="bs">CAGR (${escapeHtml(best.toUpperCase())})</div></div>
     <div class="bstat"><div class="bk">Day Win Rate</div><div class="bv" style="color:var(--brand-b)">${fmt(dayWinRate,1)}%</div><div class="bs">${bestD.win_days}/${bestD.win_days+bestD.lose_days} days</div></div>
     <div class="bstat"><div class="bk">Profit Factor</div><div class="bv">${fmt(bestD.pf,2)}</div><div class="bs">gross profit/loss</div></div>
     <div class="bstat"><div class="bk">Max Drawdown</div><div class="bv" style="color:${bestD.maxdd>10?'var(--red)':'var(--amber)'}">-${fmt(bestD.maxdd,2)}%</div><div class="bs">peak to valley</div></div>

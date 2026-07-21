@@ -14,8 +14,12 @@ Or via Docker (see Dockerfile / docker-compose.yml).
 import sqlite3
 import os
 import json
+import logging
 from pathlib import Path
 from flask import Flask, jsonify, request, g, send_from_directory
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
 try:
     import requests
@@ -178,9 +182,16 @@ def put_detail(lev, kind):
         return jsonify({"error": "unknown kind"}), 400
     rows = request.get_json(force=True) or []
     db = get_db()
+    # Column names can't be parameterized in SQL the way values can (placeholders only
+    # work for values) — so instead of trying to escape/sanitize arbitrary column names
+    # from the request body, validate them against the table's own real schema first.
+    # Anything not an actual column on this table never reaches the SQL string at all.
+    valid_cols = {row[1] for row in db.execute(f"PRAGMA table_info({tbl})")} - {"lev"}
     db.execute(f"DELETE FROM {tbl} WHERE lev = ?", (lev,))
     for row in rows:
-        cols = list(row.keys())
+        cols = [c for c in row.keys() if c in valid_cols]
+        if not cols:
+            continue
         placeholders = ", ".join("?" for _ in cols)
         col_names = ", ".join(cols)
         db.execute(f"INSERT INTO {tbl} (lev, {col_names}) VALUES (?, {placeholders})",
@@ -213,7 +224,8 @@ def get_config():
         merged["weights"] = {**DEFAULT_SCORING_CONFIG["weights"], **cfg.get("weights", {})}
         return jsonify(merged)
     except (json.JSONDecodeError, OSError) as e:
-        return jsonify({"error": f"config file unreadable: {e}", **DEFAULT_SCORING_CONFIG}), 200
+        logger.warning(f"Scoring config file unreadable, falling back to defaults: {e}")
+        return jsonify({"error": "Config file unreadable — using default scoring weights instead. Check server logs for details.", **DEFAULT_SCORING_CONFIG}), 200
 
 
 @app.route("/api/config", methods=["PUT"])
@@ -271,7 +283,8 @@ def upsert_run(lev):
         )
         db.commit()
     except sqlite3.OperationalError as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        logger.error(f"Failed to save run '{lev}': {e}")
+        return jsonify({"ok": False, "error": "Could not save this run — check server logs for details."}), 500
     return jsonify({"ok": True, "lev": lev})
 
 
@@ -379,10 +392,12 @@ def get_candles():
             "startTime": start_ts, "endTime": end_ts, "limit": 500,
         }, timeout=10)
         if not resp.ok:
-            return jsonify({"error": f"Binance API returned {resp.status_code}", "detail": resp.text[:300]}), 502
+            logger.warning(f"Binance API error for {symbol} ({base_url}): {resp.status_code} — {resp.text[:300]}")
+            return jsonify({"error": f"Binance API returned {resp.status_code}. Check server logs for the full response."}), 502
         raw = resp.json()
     except requests.RequestException as e:
-        return jsonify({"error": f"Could not reach Binance: {str(e)}"}), 502
+        logger.warning(f"Could not reach Binance ({base_url}) for {symbol}: {e}")
+        return jsonify({"error": "Could not reach Binance. Check server logs for details, or that this server has outbound internet access."}), 502
 
     candles = [{
         "time": row[0], "open": float(row[1]), "high": float(row[2]),

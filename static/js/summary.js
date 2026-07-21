@@ -62,11 +62,11 @@ function toggleQuickEdit(lev){
       <div class="field-row">
         <div class="field">
           <label>Rename this run (strategy)</label>
-          <input type="text" id="qe-newlev" value="${lev}">
+          <input type="text" id="qe-newlev" value="${escapeHtml(lev)}">
         </div>
         <div class="field">
           <label>Exchange</label>
-          <input type="text" id="qe-exchange" value="${d.exchange || ''}" placeholder="e.g. Binance, Bybit, Bitget">
+          <input type="text" id="qe-exchange" value="${escapeHtml(d.exchange || '')}" placeholder="e.g. Binance, Bybit, Bitget">
         </div>
         <div class="field">
           <label>Market Type</label>
@@ -78,7 +78,7 @@ function toggleQuickEdit(lev){
         </div>
         <div class="field">
           <label>Grind Mode Max Slots</label>
-          <input type="text" id="qe-grindslots" value="${d.grind_mode_max_slots || ''}" placeholder="e.g. 1 (NFI default)">
+          <input type="text" id="qe-grindslots" value="${escapeHtml(d.grind_mode_max_slots || '')}" placeholder="e.g. 1 (NFI default)">
         </div>
       </div>
       <button class="btn" onclick="saveQuickEdit('${escapeAttr(lev)}')">Save changes</button>
