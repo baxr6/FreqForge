@@ -164,6 +164,21 @@ DETAIL_TABLES = {
     "days": "day_stats", "trades": "trades",
 }
 
+# Static allowlist of real columns per detail table, matching the CREATE TABLE
+# statements in init_db() exactly. Used instead of a runtime PRAGMA table_info() query
+# to validate incoming column names before they're used to build SQL — a hardcoded set
+# like this is something a static analyzer can trace directly as "not user-controlled",
+# rather than a value that depends on another database call, which is harder to prove
+# safe from static analysis alone even when it's genuinely effective at runtime.
+_STAT_TABLE_COLS = {"label", "count", "avg_profit_pct", "tot_profit_usdt", "tot_profit_pct", "duration", "win", "draw", "loss", "win_pct"}
+DETAIL_TABLE_COLUMNS = {
+    "pair_stats": _STAT_TABLE_COLS,
+    "exit_stats": _STAT_TABLE_COLS,
+    "enter_stats": _STAT_TABLE_COLS,
+    "day_stats": {"day", "trades", "tot_profit_usdt", "profit_factor", "win", "draw", "loss", "win_pct"},
+    "trades": {"pair", "profit_pct", "profit_abs", "open_date", "close_date", "exit_reason", "enter_tag", "duration_min", "order_count", "orders_json", "is_short"},
+}
+
 
 @app.route("/api/runs/<lev>/detail/<kind>", methods=["GET"])
 def get_detail(lev, kind):
@@ -184,9 +199,9 @@ def put_detail(lev, kind):
     db = get_db()
     # Column names can't be parameterized in SQL the way values can (placeholders only
     # work for values) — so instead of trying to escape/sanitize arbitrary column names
-    # from the request body, validate them against the table's own real schema first.
-    # Anything not an actual column on this table never reaches the SQL string at all.
-    valid_cols = {row[1] for row in db.execute(f"PRAGMA table_info({tbl})")} - {"lev"}
+    # from the request body, validate them against a static, hardcoded allowlist first.
+    # Anything not in this fixed set never reaches the SQL string at all.
+    valid_cols = DETAIL_TABLE_COLUMNS.get(tbl, set())
     db.execute(f"DELETE FROM {tbl} WHERE lev = ?", (lev,))
     for row in rows:
         cols = [c for c in row.keys() if c in valid_cols]
